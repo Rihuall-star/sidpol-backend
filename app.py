@@ -11,6 +11,8 @@ from ml_cluster import clusterizar_departamentos
 import re
 from sklearn.cluster import KMeans
 import numpy as np
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 from flask import (
     Flask, render_template, request, redirect,
@@ -62,33 +64,49 @@ col = db['denuncias']
 # ============================================================
 #  LOGIN / LOGOUT
 # ============================================================
+# --- DECORADOR: SOLO ADMIN ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificamos si el rol en la sesión es 'admin'
+        if session.get('rol') != 'admin':
+            flash('⛔ Acceso denegado: Se requieren privilegios de Administrador.', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
+# --- DECORADOR: LOGIN REQUERIDO ---
 def login_required(f):
     @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get("logged_in"):
-            return redirect(url_for("login"))
+    def decorated_function(*args, **kwargs):
+        # Si no hay usuario en la sesión, lo manda al login
+        if 'user' not in session:
+            flash('Por favor inicia sesión para acceder.', 'warning')
+            return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return decorated
+    return decorated_function
 
-
-@app.route("/login", methods=["GET", "POST"])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    admin_user = os.getenv("ADMIN_USER")
-    admin_pass = os.getenv("ADMIN_PASSWORD")
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
 
-    if request.method == "POST":
-        user = request.form.get("username")
-        password = request.form.get("password")
+        users_col = db['usuarios']
+        user_data = users_col.find_one({"username": username})
 
-        if user == admin_user and password == admin_pass:
-            session["logged_in"] = True
-            session["username"] = user
-            return redirect(url_for("index"))
+        # --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
+        # Usamos check_password_hash para comparar la clave encriptada de la BD
+        # con la clave normal que escribió el usuario.
+        if user_data and check_password_hash(user_data['password'], password):
+            session['user'] = username
+            session['rol'] = user_data.get('rol', 'invitado')
+            return redirect(url_for('index'))
         else:
-            flash("Credenciales incorrectas", "danger")
+            flash('Usuario o contraseña incorrectos', 'error')
+            return redirect(url_for('login'))
 
-    return render_template("login.html")
+    return render_template('login.html')
 
 
 @app.route("/logout")
@@ -902,6 +920,67 @@ def agente_logistico():
     orden_operaciones = preguntar_gemini(prompt_logistica)
     
     return render_template('agente_logistico.html', plan=orden_operaciones)
+
+# --- IMPORTANTE: Asegúrate de tener esto arriba del todo ---
+# from werkzeug.security import generate_password_hash
+# from functools import wraps
+
+# --- Decorador para permitir acceso solo al Admin ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('rol') != 'admin':
+            flash('Acceso denegado. Solo administradores.', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+# ============================================================
+# RUTA PARA CREAR USUARIOS
+# ============================================================
+# --- RUTA PARA CREAR USUARIOS ---
+# --- IMPORTANTE: Asegúrate de tener esto arriba del todo ---
+# from werkzeug.security import generate_password_hash
+# from functools import wraps
+
+# --- Decorador para permitir acceso solo al Admin ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('rol') != 'admin':
+            flash('Acceso denegado. Solo administradores.', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- RUTA PARA CREAR USUARIOS ---
+@app.route('/crear_usuario', methods=['GET', 'POST'])
+@login_required # Obliga a estar logueado
+@admin_required # Obliga a ser admin (usando el decorador de arriba)
+def crear_usuario():
+    if request.method == 'POST':
+        # 1. Obtener datos del formulario
+        username = request.form['username']
+        password = request.form['password']
+        rol = request.form['rol']
+
+        # 2. Conectar a BD
+        users_col = db['usuarios']
+
+        # 3. Validar si ya existe
+        if users_col.find_one({"username": username}):
+            flash('El usuario ya existe.', 'error')
+        else:
+            # 4. Encriptar y Guardar
+            hashed_password = generate_password_hash(password)
+            users_col.insert_one({
+                "username": username,
+                "password": hashed_password,
+                "rol": rol
+            })
+            flash(f'Usuario {username} creado exitosamente.', 'success')
+            return redirect(url_for('crear_usuario'))
+
+    return render_template('crear_usuario.html')
 # ============================================================
 # RUN
 # ============================================================
