@@ -12,11 +12,12 @@ def preparar_matriz_departamento(col):
         { "$match": match_filter },
         {
             "$group": {
-                # --- OJO AQUÍ ---
+                # --- AQUÍ ESTÁ LA CLAVE ---
+                # Izquierda: minúsculas ("dpto", "mod", "anio")
                 "_id": { 
-                    "dpto": "$DPTO_HECHO_NEW", # <--- Etiqueta "dpto" (minúscula)
-                    "mod": "$P_MODALIDADES",   # <--- Etiqueta "mod" (minúscula)
-                    "anio": "$ANIO"            # <--- Etiqueta "anio" (minúscula)
+                    "dpto": "$DPTO_HECHO_NEW", 
+                    "mod": "$P_MODALIDADES",
+                    "anio": "$ANIO" 
                 },
                 "total": { "$sum": 1 }
             }
@@ -26,7 +27,7 @@ def preparar_matriz_departamento(col):
     # 3. Ejecutar
     resultados = list(col.aggregate(pipeline))
 
-    # 4. Procesar
+    # 4. Procesar (Aquí fallaba antes)
     datos = []
     for d in resultados:
         datos.append({

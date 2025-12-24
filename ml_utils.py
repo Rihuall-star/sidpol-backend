@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
-    # 1. Filtro
+    # 1. Definimos filtro
     match_filter = {}
     if modalidad:
         match_filter["P_MODALIDADES"] = modalidad
@@ -14,12 +14,12 @@ def preparar_mensual(col, modalidad=None):
         { "$match": match_filter },
         {
             "$group": {
-                # --- OJO AQUÍ ---
-                # IZQUIERDA (Minúscula): Es el nombre que usaremos en Python.
-                # DERECHA (Mayúscula): Es la columna de la Base de Datos.
+                # --- AQUÍ ESTÁ LA CLAVE ---
+                # Izquierda ("anio", "mes"): Minúsculas (Para que Python lo lea)
+                # Derecha ("$ANIO", "$MES"): Mayúsculas (Para leer de la Nube)
                 "_id": { 
-                    "anio": "$ANIO",  # <--- Etiqueta "anio"
-                    "mes": "$MES"     # <--- Etiqueta "mes"
+                    "anio": "$ANIO", 
+                    "mes": "$MES" 
                 },
                 "total": { "$sum": 1 }
             }
@@ -30,7 +30,7 @@ def preparar_mensual(col, modalidad=None):
     # 3. Ejecutar
     resultados = list(col.aggregate(pipeline))
     
-    # 4. Procesar
+    # 4. Procesar (Aquí es donde fallaba antes)
     datos_procesados = []
     for d in resultados:
         datos_procesados.append({
