@@ -4,26 +4,20 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
-    """
-    Devuelve un DataFrame con columnas:
-    - t  (índice de tiempo 1,2,3,...)
-    - anio
-    - mes
-    - total  (denuncias ese mes)
-    """
-    match = {}
+    # 1. Definimos el filtro (match_filter)
+    match_filter = {}
     if modalidad:
-        match["P_MODALIDADES"] = modalidad
+        # IMPORTANTE: Usamos el nombre de la columna en la Nube ("P_MODALIDADES")
+        match_filter["P_MODALIDADES"] = modalidad
 
+    # 2. Creamos el Pipeline
     pipeline = [
         {
             "$match": match_filter
         },
         {
             "$group": {
-                # OJO AQUÍ:
-                # Izquierda ("anio", "mes"): Minúsculas (Es lo que Python lee)
-                # Derecha ("$ANIO", "$MES"): Mayúsculas (Es lo que tiene la Base de Datos)
+                # Mapeo: Izquierda (Python) -> Derecha (Nube)
                 "_id": { "anio": "$ANIO", "mes": "$MES" },
                 "total": { "$sum": 1 }
             }
@@ -33,21 +27,20 @@ def preparar_mensual(col, modalidad=None):
         }
     ]
 
-    datos = list(col.aggregate(pipeline))
-    if not datos:
-        return pd.DataFrame(columns=["t", "anio", "mes", "total"])
-
-    filas = []
-    for d in datos:
-        filas.append({
+    # 3. Ejecutamos la consulta
+    resultados = list(col.aggregate(pipeline))
+    
+    # 4. Convertimos a DataFrame
+    datos_procesados = []
+    for d in resultados:
+        datos_procesados.append({
             "anio": d["_id"]["anio"],
             "mes": d["_id"]["mes"],
             "total": d["total"]
         })
 
-    df = pd.DataFrame(filas)
-    df = df.sort_values(by=["anio", "mes"]).reset_index(drop=True)
-    df["t"] = np.arange(1, len(df) + 1)
+    import pandas as pd
+    df = pd.DataFrame(datos_procesados)
     return df
 
 

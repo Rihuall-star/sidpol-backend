@@ -4,55 +4,42 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 def preparar_matriz_departamento(col):
-    """
-    Devuelve un DataFrame:
-    índice = departamento
-    columnas = modalidades
-    valores = cantidad total (2018–2025)
-    """
+    # 1. Definimos el filtro (match_filter)
+    # Filtramos para asegurarnos de que el año exista
+    match_filter = { "ANIO": { "$ne": None } }
+
+    # 2. Creamos el Pipeline
     pipeline = [
         {
             "$match": match_filter
         },
         {
             "$group": {
-                # OJO AQUÍ:
-                # Izquierda ("dpto", "mod", "anio"): Minúsculas
-                # Derecha ("$DPTO...", "$P_MOD...", "$ANIO"): Mayúsculas
+                # Mapeo completo para Agentes
                 "_id": { 
                     "dpto": "$DPTO_HECHO_NEW", 
-                    "mod": "$P_MODALIDADES",   # <--- Este es el que te faltaba arreglar
+                    "mod": "$P_MODALIDADES",
                     "anio": "$ANIO" 
                 },
                 "total": { "$sum": 1 }
             }
         }
     ]
-    datos = list(col.aggregate(pipeline))
-    if not datos:
-        return pd.DataFrame()
 
-    filas = []
-    for d in datos:
-        filas.append({
+    # 3. Ejecutamos consulta
+    resultados = list(col.aggregate(pipeline))
+
+    # 4. Procesamos resultados
+    datos = []
+    for d in resultados:
+        datos.append({
             "departamento": d["_id"]["dpto"],
             "modalidad": d["_id"]["mod"],
+            "anio": d["_id"]["anio"],
             "total": d["total"]
         })
-    df = pd.DataFrame(filas)
-
-    # Pivot: departamento x modalidad
-    tabla = df.pivot_table(
-        index="departamento",
-        columns="modalidad",
-        values="total",
-        aggfunc="sum",
-        fill_value=0
-    )
-
-    # Normalizar por fila (para que sean proporciones)
-    tabla = tabla.div(tabla.sum(axis=1), axis=0)
-    return tabla
+    
+    return datos
 
 def clusterizar_departamentos(col, n_clusters=3):
     tabla = preparar_matriz_departamento(col)
