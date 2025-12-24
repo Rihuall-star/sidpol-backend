@@ -21,8 +21,9 @@ def preparar_mensual(col, modalidad=None):
         },
         {
             "$group": {
-                # IZQUIERDA ("anio", "mes"): Nombres para Python (minúsculas).
-                # DERECHA ("$ANIO", "$MES"): Nombres de la Nube (mayúsculas).
+                # Mapeo Completo:
+                # Izquierda: Nombre que usa tu código Python ("anio", "mes")
+                # Derecha: Nombre real en la Nube ("$ANIO", "$MES")
                 "_id": { "anio": "$ANIO", "mes": "$MES" },
                 "total": { "$sum": 1 }
             }

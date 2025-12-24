@@ -16,9 +16,15 @@ def preparar_matriz_departamento(col):
         },
         {
             "$group": {
-                # IZQUIERDA ("dpto"): El nombre que tu código Python espera leer abajo.
-                # DERECHA ("$DPTO_HECHO_NEW"): El nombre real de la columna en la Nube.
-                "_id": { "dpto": "$DPTO_HECHO_NEW", "anio": "$ANIO" },
+                # Mapeo Completo para Agentes:
+                # 1. Departamento: Cloud "DPTO_HECHO_NEW" -> Python "dpto"
+                # 2. Modalidad: Cloud "P_MODALIDADES" -> Python "mod"
+                # 3. Año: Cloud "ANIO" -> Python "anio"
+                "_id": { 
+                    "dpto": "$DPTO_HECHO_NEW", 
+                    "mod": "$P_MODALIDADES",
+                    "anio": "$ANIO" 
+                },
                 "total": { "$sum": 1 }
             }
         }
