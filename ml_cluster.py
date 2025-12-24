@@ -11,14 +11,18 @@ def preparar_matriz_departamento(col):
     valores = cantidad total (2018–2025)
     """
     pipeline = [
-    {
-        "$group": {
-            # Mapeamos: Python recibe "dpto", pero Mongo lee "$DPTO_HECHO_NEW"
-            "_id": { "dpto": "$DPTO_HECHO_NEW", "anio": "$ANIO" },
-            "total": { "$sum": 1 }
+        {
+            "$match": match_filter
+        },
+        {
+            "$group": {
+                # IZQUIERDA ("dpto"): El nombre que tu código Python espera leer abajo.
+                # DERECHA ("$DPTO_HECHO_NEW"): El nombre real de la columna en la Nube.
+                "_id": { "dpto": "$DPTO_HECHO_NEW", "anio": "$ANIO" },
+                "total": { "$sum": 1 }
+            }
         }
-    }
-   ]
+    ]
     datos = list(col.aggregate(pipeline))
     if not datos:
         return pd.DataFrame()
