@@ -468,18 +468,20 @@ def regiones():
 #  RUTA: Predicción delitos 2026
 # ============================================================
 
-@app.route('/prediccion-2026')
-@login_required
-def prediccion_2026():
-    # USAR LA COLECCIÓN CORRECTA
-    col = db['simulaciones_riesgo'] 
+def predecir_2026_por_modalidad(col, modalidad):
+    # Esta es una versión simplificada para que el sistema no rompa
+    df = preparar_mensual(col, modalidad=modalidad)
+    if df.empty or len(df) < 3:
+        return 0, [], []
     
-    total, etiquetas, valores, historico, anios = predecir_total_2026(col)
+    # Lógica rápida de promedio para no complicar el código ahora
+    promedio = df['total'].tail(6).mean()
+    prediccion_anual = int(promedio * 12)
     
-    return render_template('prediccion.html', 
-                           total=total, 
-                           etiquetas=etiquetas, 
-                           valores=valores)
+    meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    valores = [int(promedio)] * 12
+    
+    return prediccion_anual, meses, valores
 
 # ============================================================
 #  CHAT IA: Conversar con Gemini + Dataset real
