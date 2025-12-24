@@ -4,14 +4,14 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 def preparar_matriz_departamento(col):
-    # 1. Definimos el filtro (match_filter)
-    # Filtramos para asegurarnos de que el año exista
+    # --- 1. DEFINIR EL FILTRO (PRIMERO) ---
+    # Filtramos para asegurarnos de que el año exista en la nube (ANIO)
     match_filter = { "ANIO": { "$ne": None } }
 
-    # 2. Creamos el Pipeline
+    # --- 2. CREAR EL PIPELINE (SEGUNDO) ---
     pipeline = [
         {
-            "$match": match_filter
+            "$match": match_filter # <--- Ahora sí existe
         },
         {
             "$group": {
@@ -26,10 +26,10 @@ def preparar_matriz_departamento(col):
         }
     ]
 
-    # 3. Ejecutamos consulta
+    # --- 3. EJECUTAR CONSULTA ---
     resultados = list(col.aggregate(pipeline))
 
-    # 4. Procesamos resultados
+    # --- 4. PROCESAR RESULTADOS ---
     datos = []
     for d in resultados:
         datos.append({
