@@ -86,6 +86,12 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.route('/logout')
+def logout():
+    session.clear() # Borra todos los datos de la memoria (usuario, rol, etc.)
+    flash('Has cerrado sesión correctamente.', 'success')
+    return redirect(url_for('login'))
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -108,11 +114,6 @@ def login():
 
     return render_template('login.html')
 
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
 
 
 # ============================================================

@@ -1,0 +1,19 @@
+# --- SECRETOS (¡NO SUBIR!) ---
+.env
+crear_admin_nube.py
+hacer_admin.py
+instance/
+
+# --- BASURA DE PYTHON ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- CARPETAS PESADAS ---
+venv/
+.venv/
+env/
+
+# --- SISTEMA Y EDITOR ---
+.DS_Store
+.vscode/

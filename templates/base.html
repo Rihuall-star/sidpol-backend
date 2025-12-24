@@ -105,10 +105,19 @@
                      </a>
                 </li>
                   <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('crear_usuario') }}">
-        <i class="fas fa-user-plus"></i> Crear Usuarios
-    </a>
-</li>
+                      <a class="nav-link" href="{{ url_for('crear_usuario') }}">
+                      <i class="fas fa-user-plus"></i> Crear Usuarios
+                    </a>
+                  </li>
+                  {% if session.get('user') %}
+    
+                  <li class="nav-item">
+                  <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                   </a>
+                  </li>
+
+                {% endif %}
             </ul>
 
             <!-- MENÚ DERECHA: LOGIN / USUARIO -->
@@ -125,6 +134,8 @@
                         <a class="nav-link" href="{{ url_for('login') }}">Login</a>
                     </li>
                 {% endif %}
+
+                
             </ul>
 
         </div>
