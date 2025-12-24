@@ -4,18 +4,16 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 def preparar_matriz_departamento(col):
-    # --- PASO 1: DEFINIR LA VARIABLE PRIMERO ---
-    # Filtramos para asegurarnos de que existe el año (ANIO)
+    # --- PASO 1: DEFINIMOS LA VARIABLE PRIMERO ---
     match_filter = { "ANIO": { "$ne": None } }
 
-    # --- PASO 2: CREAR EL PIPELINE ---
+    # --- PASO 2: AHORA SÍ LA USAMOS EN EL PIPELINE ---
     pipeline = [
         {
-            "$match": match_filter # <--- Python ya sabe qué es esto
+            "$match": match_filter # <--- Python ya la conoce
         },
         {
             "$group": {
-                # Mapeo completo: Cloud -> Python
                 "_id": { 
                     "dpto": "$DPTO_HECHO_NEW", 
                     "mod": "$P_MODALIDADES",
@@ -26,7 +24,7 @@ def preparar_matriz_departamento(col):
         }
     ]
 
-    # --- PASO 3: EJECUTAR ---
+    # --- PASO 3: EJECUTAMOS ---
     resultados = list(col.aggregate(pipeline))
 
     datos = []

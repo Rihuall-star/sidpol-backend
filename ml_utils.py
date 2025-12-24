@@ -4,20 +4,18 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
-    # --- PASO 1: DEFINIR LA VARIABLE PRIMERO (OBLIGATORIO) ---
+    # --- PASO 1: DEFINIMOS LA VARIABLE PRIMERO ---
     match_filter = {}
     if modalidad:
-        # Usamos el nombre de la columna real de la Nube
         match_filter["P_MODALIDADES"] = modalidad
 
-    # --- PASO 2: AHORA SÍ CREAMOS EL PIPELINE ---
+    # --- PASO 2: AHORA SÍ LA USAMOS EN EL PIPELINE ---
     pipeline = [
         {
-            "$match": match_filter  # <--- Python ya sabe qué es esto porque lo definimos arriba
+            "$match": match_filter  # <--- Python ya la conoce porque la definimos arriba
         },
         {
             "$group": {
-                # Mapeo: Izquierda (Python) -> Derecha (Nube)
                 "_id": { "anio": "$ANIO", "mes": "$MES" },
                 "total": { "$sum": 1 }
             }
@@ -26,6 +24,21 @@ def preparar_mensual(col, modalidad=None):
             "$sort": { "_id.anio": 1, "_id.mes": 1 }
         }
     ]
+
+    # --- PASO 3: EJECUTAMOS ---
+    resultados = list(col.aggregate(pipeline))
+    
+    datos_procesados = []
+    for d in resultados:
+        datos_procesados.append({
+            "anio": d["_id"]["anio"],
+            "mes": d["_id"]["mes"],
+            "total": d["total"]
+        })
+
+    import pandas as pd
+    df = pd.DataFrame(datos_procesados)
+    return df
 
     # --- PASO 3: EJECUTAR ---
     resultados = list(col.aggregate(pipeline))
