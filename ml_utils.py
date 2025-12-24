@@ -4,16 +4,16 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
-    # --- 1. DEFINIR EL FILTRO (ESTO ES LO QUE FALTABA) ---
+    # --- PASO 1: DEFINIR LA VARIABLE PRIMERO (OBLIGATORIO) ---
     match_filter = {}
     if modalidad:
-        # Usamos el nombre de la columna en la Nube ("P_MODALIDADES")
+        # Usamos el nombre de la columna real de la Nube
         match_filter["P_MODALIDADES"] = modalidad
 
-    # --- 2. CREAR EL PIPELINE (USANDO EL FILTRO DE ARRIBA) ---
+    # --- PASO 2: AHORA SÍ CREAMOS EL PIPELINE ---
     pipeline = [
         {
-            "$match": match_filter  # <--- Ahora sí existe la variable
+            "$match": match_filter  # <--- Python ya sabe qué es esto porque lo definimos arriba
         },
         {
             "$group": {
@@ -27,10 +27,9 @@ def preparar_mensual(col, modalidad=None):
         }
     ]
 
-    # --- 3. EJECUTAR CONSULTA ---
+    # --- PASO 3: EJECUTAR ---
     resultados = list(col.aggregate(pipeline))
     
-    # --- 4. CONVERTIR A DATAFRAME ---
     datos_procesados = []
     for d in resultados:
         datos_procesados.append({
