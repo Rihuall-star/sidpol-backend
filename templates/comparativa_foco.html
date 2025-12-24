@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Comparativa Foco - Extorsión vs Homicidio{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-3">Análisis Focalizado (Punto 4)</h1>
+    <p class="text-muted">
+        Comparativa trimestral acumulada (2018-2025) para <strong>Extorsión</strong> y <strong>Homicidio</strong> 
+        en los departamentos clave: <em>Lima, Arequipa, Ayacucho, La Libertad y Lambayeque</em>.
+    </p>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Tendencia por Trimestres (T1 - T4)</h5>
+            <canvas id="chartFoco" height="100"></canvas>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5>Resumen Numérico</h5>
+            <table class="table table-bordered table-striped text-center">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Trimestre</th>
+                        <th>Extorsión</th>
+                        <th>Homicidio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Trimestre 1 (Ene-Mar)</td> <td>{{ datos['Extorsión']['T1'] }}</td> <td>{{ datos['Homicidio']['T1'] }}</td></tr>
+                    <tr><td>Trimestre 2 (Abr-Jun)</td> <td>{{ datos['Extorsión']['T2'] }}</td> <td>{{ datos['Homicidio']['T2'] }}</td></tr>
+                    <tr><td>Trimestre 3 (Jul-Sep)</td> <td>{{ datos['Extorsión']['T3'] }}</td> <td>{{ datos['Homicidio']['T3'] }}</td></tr>
+                    <tr><td>Trimestre 4 (Oct-Dic)</td> <td>{{ datos['Extorsión']['T4'] }}</td> <td>{{ datos['Homicidio']['T4'] }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ctx = document.getElementById('chartFoco');
+    
+    // Datos inyectados desde Flask
+    const dataExtorsion = [
+        {{ datos['Extorsión']['T1'] }}, {{ datos['Extorsión']['T2'] }}, 
+        {{ datos['Extorsión']['T3'] }}, {{ datos['Extorsión']['T4'] }}
+    ];
+    
+    const dataHomicidio = [
+        {{ datos['Homicidio']['T1'] }}, {{ datos['Homicidio']['T2'] }}, 
+        {{ datos['Homicidio']['T3'] }}, {{ datos['Homicidio']['T4'] }}
+    ];
+
+    new Chart(ctx, {
+        type: 'line', // Línea para ver "crecimiento/decrecimiento" como pide el PDF
+        data: {
+            labels: ['Trimestre 1', 'Trimestre 2', 'Trimestre 3', 'Trimestre 4'],
+            datasets: [
+                {
+                    label: 'Extorsión (5 Deptos Clave)',
+                    data: dataExtorsion,
+                    borderColor: '#dc3545', // Rojo
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Homicidio (5 Deptos Clave)',
+                    data: dataHomicidio,
+                    borderColor: '#0d6efd', // Azul
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Comparación de Curvas de Incidencia' }
+            },
+            scales: {
+                y: { beginAtZero: true, title: {display: true, text: 'Cantidad de Denuncias'} }
+            }
+        }
+    });
+</script>
+{% endblock %}

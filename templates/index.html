@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Analítica de Denuncias{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4 text-center">Analítica de Denuncias Policiales (Perú)</h1>
+
+<div class="row mb-4">
+
+    <!-- Tarjeta 1: Registros en MongoDB -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Registros en MongoDB</h5>
+                <p class="display-6">{{ total_registros | default(0) }}</p>
+                <p class="text-muted">Filas del dataset cargadas.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjeta 2: Total de denuncias -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Total de denuncias (cantidad)</h5>
+                <p class="display-6">{{ total_denuncias | default(0) }}</p>
+                <p class="text-muted">Suma de la columna <span class="text-danger">cantidad</span>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjeta 3: Años disponibles -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Años disponibles</h5>
+                {% if anios %}
+                    {% for anio in anios %}
+                        <span class="badge bg-primary me-1">{{ anio }}</span>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">Sin datos.</p>
+                {% endif %}
+                <p class="mt-2 text-muted">Años con datos en la base.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<p class="text-muted">
+    Esta es la versión inicial de la aplicación. Desde el menú superior puedes acceder al resumen anual,
+    al análisis por departamentos, modalidades delictivas, trimestres y la predicción de denuncias para 2026,
+    además del Chat IA.
+</p>
+
+{% endblock %}

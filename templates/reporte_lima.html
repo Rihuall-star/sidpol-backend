@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte Nacional - Extorsión vs Homicidio{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4 text-center">
+        <div class="col">
+            <h2 class="fw-bold text-dark">
+                <i class="bi bi-graph-up-arrow text-primary"></i> Evolución de la Criminalidad Violenta
+            </h2>
+            <p class="text-muted">Comparativa Histórica Trimestral (2018-2025)</p>
+        </div>
+    </div>
+
+    <div class="card shadow-lg border-0">
+        <div class="card-body">
+            <div style="position: relative; height: 50vh; width: 100%">
+                <canvas id="graficoTendencia"></canvas>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top-0">
+            <div class="alert alert-warning d-flex align-items-center mb-0">
+                <i class="bi bi-lightbulb-fill fs-4 me-3"></i>
+                <div>
+                    <strong>Hallazgo Clave:</strong>
+                    Se evidencia un crecimiento abrupto de la <b>Extorsión</b> (Línea Azul) a partir del 2021, superando ampliamente la tasa de Homicidios.
+                    Esto coincide con la expansión de organizaciones criminales dedicadas al "cobro de cupos".
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const ctx = document.getElementById('graficoTendencia').getContext('2d');
+    
+    const labels = {{ labels | tojson }};
+    const dataExtorsion = {{ extorsion | tojson }};
+    const dataHomicidio = {{ homicidio | tojson }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Extorsión (Cobro de Cupos)',
+                    data: dataExtorsion,
+                    borderColor: '#0d6efd', // Azul Bootstrap
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#0d6efd',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.3, // Curvas suaves
+                    fill: true
+                },
+                {
+                    label: 'Homicidio / Sicariato',
+                    data: dataHomicidio,
+                    borderColor: '#dc3545', // Rojo Bootstrap
+                    backgroundColor: 'rgba(220, 53, 69, 0.05)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#dc3545',
+                    pointRadius: 5,
+                    tension: 0.3,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 14, weight: 'bold' },
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    title: { display: true, text: 'Periodo (Año-Trimestre)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { borderDash: [5, 5] },
+                    title: { display: true, text: 'Número de Denuncias' }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

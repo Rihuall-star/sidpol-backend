@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Mapa del Delito - SIDPOL{% endblock %}
+
+{% block content %}
+<script src="https://code.highcharts.com/maps/highmaps.js"></script>
+<script src="https://code.highcharts.com/maps/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/mapdata/countries/pe/pe-all.js"></script>
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h2 class="fw-bold text-primary"><i class="bi bi-geo-alt-fill"></i> Geografía del Delito</h2>
+            <p class="text-muted">Distribución espacial de denuncias a nivel nacional (Heatmap).</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm" style="height: 600px;">
+                <div class="card-body p-0">
+                    <div id="container-mapa" style="height: 100%; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-exclamation-triangle"></i> Top 5: Zonas Críticas
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for item in top_5 %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-bold">{{ item._id }}</span>
+                        </div>
+                        <span class="badge bg-danger rounded-pill">{{ "{:,.0f}".format(item.total) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="alert alert-info">
+                <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Interpretación</h5>
+                <p class="small mb-0">
+                    Las zonas con color <strong>azul oscuro</strong> representan la mayor concentración de denuncias. 
+                    Lima Metropolitana y la Costa Norte suelen presentar la mayor densidad delictiva.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Datos recibidos desde Flask
+    var data = {{ data_mapa | tojson }};
+
+    Highcharts.mapChart('container-mapa', {
+        chart: {
+            map: 'countries/pe/pe-all'
+        },
+        title: {
+            text: ''
+        },
+        mapNavigation: {
+            enabled: true,
+            buttonOptions: {
+                verticalAlign: 'bottom'
+            }
+        },
+        colorAxis: {
+            min: 0,
+            minColor: '#E6F3FF', 
+            maxColor: '#003366', 
+        },
+        series: [{
+            data: data,
+            name: 'Denuncias Totales',
+            states: {
+                hover: {
+                    color: '#BADA55'
+                }
+            },
+            dataLabels: {
+                enabled: true,
+                format: '{point.name}'
+            }
+        }]
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+/* Mejorar fondo general */
+body {
+    background: #f8f9fa !important;
+    font-family: "Poppins", sans-serif;
+}
+
+/* Tarjetas más limpias */
+.card {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Títulos principales */
+h1 {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Tablas */
+.table thead {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f2f6ff;
+}
+
+/* Botones personalizados */
+.btn-primary {
+    border-radius: 8px;
+}

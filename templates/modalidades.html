@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Modalidades - Analítica de Denuncias{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Denuncias por Modalidad Delictiva</h1>
+
+<!-- Gráfico de barras -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <canvas id="graficoModalidades"></canvas>
+    </div>
+</div>
+
+<!-- Tabla de detalle -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5>Detalle por modalidad</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Modalidad</th>
+                    <th>Total denuncias</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in tabla %}
+                    <tr>
+                        <td>{{ fila["_id"] }}</td>
+                        <td>{{ fila["total"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="text-muted mt-2">
+            El total corresponde al periodo 2018–2025 para cada modalidad delictiva.
+        </p>
+    </div>
+</div>
+
+<script>
+    const ctxMod = document.getElementById('graficoModalidades');
+
+    const etiquetasMod = {{ labels | tojson }};
+    const datosMod = {{ valores | tojson }};
+
+    new Chart(ctxMod, {
+        type: 'bar',
+        data: {
+            labels: etiquetasMod,
+            datasets: [{
+                label: 'Denuncias por modalidad',
+                data: datosMod,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

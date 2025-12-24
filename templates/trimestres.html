@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Trimestres - Analítica de Denuncias{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Evolución Trimestral de Denuncias</h1>
+
+<!-- Gráfico de líneas / barras por trimestre -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <canvas id="graficoTrimestres"></canvas>
+    </div>
+</div>
+
+<!-- Tabla de detalle -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5>Totales por trimestre</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Trimestre</th>
+                    <th>Total denuncias</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in tabla %}
+                    <tr>
+                        <td>{{ fila["_id"] }}</td>
+                        <td>{{ fila["total"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="text-muted mt-2">
+            El identificador de trimestre corresponde al formato <strong>AÑO-Tn</strong>, por ejemplo <em>2018-T1</em>.
+        </p>
+    </div>
+</div>
+
+<script>
+    const ctxTri = document.getElementById('graficoTrimestres');
+
+    const etiquetasTri = {{ labels | tojson }};
+    const datosTri = {{ valores | tojson }};
+
+    new Chart(ctxTri, {
+        type: 'line',
+        data: {
+            labels: etiquetasTri,
+            datasets: [{
+                label: 'Denuncias por trimestre',
+                data: datosTri,
+                borderWidth: 2,
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

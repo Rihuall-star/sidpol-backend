@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle modalidad {{ modalidad }}{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Distribución de la modalidad: {{ modalidad }}</h1>
+
+<p class="text-muted">
+    Este análisis muestra cómo se distribuye la modalidad delictiva
+    <strong>{{ modalidad }}</strong> a nivel nacional por departamentos.
+</p>
+
+<!-- Gráfico general -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title">Distribución por departamento</h5>
+        <canvas id="graficoModalidadDetalle"></canvas>
+    </div>
+</div>
+
+<script>
+const ctx = document.getElementById('graficoModalidadDetalle');
+
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ labels|tojson }},
+        datasets: [{
+            label: 'Denuncias por departamento',
+            data: {{ valores|tojson }},
+            borderWidth: 2
+        }]
+    },
+    options: {
+        indexAxis: 'y'
+    }
+});
+</script>
+
+<!-- Tabla general -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h5>Tabla completa</h5>
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>Departamento</th>
+                    <th>Total denuncias</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in tabla %}
+                    <tr>
+                        <td>{{ fila["_id"] }}</td>
+                        <td>{{ fila["total"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Análisis específico para 5 departamentos -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5>Comparación de 5 departamentos clave</h5>
+        <p class="text-muted">Departamentos analizados: Lima Metropolitana, Arequipa, Ayacucho, La Libertad, Lambayeque.</p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Departamento</th>
+                    <th>Denuncias registradas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in foco %}
+                    <tr>
+                        <td><strong>{{ fila["_id"] }}</strong></td>
+                        <td>{{ fila["total"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Agente Estratega - SIDPOL{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="display-5 fw-bold text-primary">
+                <i class="bi bi-robot"></i> Agente "Centinela" de Políticas Públicas
+            </h1>
+            <p class="lead text-muted">
+                Este módulo autónomo analiza las predicciones matemáticas y genera estrategias de mitigación en tiempo real.
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow border-0 bg-light mb-3">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-secondary">Alerta Predictiva 2026</h5>
+                    <hr>
+                    <h2 class="display-4 fw-bold text-danger">
+                        {{ "+%.1f"|format(incremento) }}%
+                    </h2>
+                    <p class="text-muted">Incremento proyectado vs 2024</p>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <strong>Cifra Estimada:</strong><br>
+                        {{ "{:,.0f}".format(prediccion) }} Denuncias
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted">
+                        <strong>Funcionamiento del Agente:</strong><br>
+                        1. El modelo de Regresión Lineal calcula la cifra futura.<br>
+                        2. El Agente compara con datos históricos.<br>
+                        3. Gemini AI procesa el escenario y diseña contramedidas.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-lg border-primary">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">INFORME GENERADO POR IA</span>
+                    <span class="badge bg-light text-dark">Modelo: Gemini 2.5</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-text">
+                        {{ analisis | safe }}
+                    </div>
+                </div>
+                <div class="card-footer text-muted text-end">
+                    Generado automáticamente el: <span id="fechaHoy"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Poner fecha de hoy
+    document.getElementById("fechaHoy").innerText = new Date().toLocaleDateString();
+</script>
+{% endblock %}

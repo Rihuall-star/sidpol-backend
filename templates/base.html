@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Analítica de Denuncias{% endblock %}</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <!-- CSS personalizado -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-light">
+
+<!-- NAVBAR SUPERIOR -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+
+        <a class="navbar-brand" href="{{ url_for('index') }}">Denuncias Perú</a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav" aria-controls="navbarNav"
+                aria-expanded="false" aria-label="Menú">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+
+            <!-- MENÚ IZQUIERDO -->
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/' %}active{% endif %}"
+                       href="{{ url_for('index') }}">Inicio</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/resumen-anual' in request.path %}active{% endif %}"
+                       href="{{ url_for('resumen_anual') }}">Resumen anual</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/departamentos' in request.path %}active{% endif %}"
+                       href="{{ url_for('departamentos') }}">Departamentos</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/departamentos-percapita' in request.path %}active{% endif %}"
+                       href="{{ url_for('departamentos_percapita') }}">Deptos per cápita</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/modalidades' in request.path %}active{% endif %}"
+                       href="{{ url_for('modalidades') }}">Modalidades</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/cluster-departamentos' in request.path %}active{% endif %}"
+                       href="{{ url_for('cluster_departamentos') }}">Clustering</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/riesgo-modalidad' in request.path %}active{% endif %}"
+                       href="{{ url_for('riesgo_modalidad') }}">
+                                                 Riesgo modalidad
+                                                               </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/trimestres' in request.path %}active{% endif %}"
+                       href="{{ url_for('trimestres') }}">Trimestres</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/regiones' in request.path %}active{% endif %}"
+                       href="{{ url_for('regiones') }}">Regiones</a>
+                </li>
+                 <li class="nav-item">
+                       <a class="nav-link text-warning" href="{{ url_for('comparativa_foco') }}">
+                             ⭐ Tarea Punto 4
+                    </a>
+                 </li>
+                      <li class="nav-item">
+                         <a class="nav-link text-primary fw-bold" href="/reporte-lima">
+                            📈 Reporte Lima
+                         </a>
+                     </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/prediccion-2026' in request.path %}active{% endif %}"
+                       href="{{ url_for('prediccion_2026') }}">Predicción 2026</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/chat-ia' in request.path %}active{% endif %}"
+                       href="{{ url_for('chat_ia') }}">Chat IA</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link fw-bold text-info" href="/agente-estrategico">
+                             🤖 Agente Estratega
+                     </a>
+                </li>
+                   <li class="nav-item">
+                    <a class="nav-link text-success" href="/agente-logistico">
+                            👮 Agente Logístico
+                     </a>
+                </li>
+            </ul>
+
+            <!-- MENÚ DERECHA: LOGIN / USUARIO -->
+            <ul class="navbar-nav ms-auto">
+                {% if session.get("logged_in") %}
+                    <li class="nav-item">
+                        <span class="nav-link disabled">Hola, {{ session.get("username") }}</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Salir</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                {% endif %}
+            </ul>
+
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    {% block content %}
+    {% endblock %}
+</div>
+
+<!-- Bootstrap JS + tu JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>

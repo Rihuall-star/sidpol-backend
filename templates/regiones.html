@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Regiones - Analítica de Denuncias{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Denuncias por Región Geográfica</h1>
+
+<!-- Gráfico por región (costa, sierra, selva, etc.) -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <canvas id="graficoRegiones"></canvas>
+    </div>
+</div>
+
+<!-- Tabla de detalle -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5>Totales por región</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Región</th>
+                    <th>Total denuncias</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in tabla %}
+                    <tr>
+                        <td>{{ fila["_id"] }}</td>
+                        <td>{{ fila["total"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="text-muted mt-2">
+            La clasificación por región se basa en las regiones geográficas tradicionales del Perú (costa, sierra y selva).
+        </p>
+    </div>
+</div>
+
+<script>
+    const ctxReg = document.getElementById('graficoRegiones');
+
+    const etiquetasReg = {{ labels | tojson }};
+    const datosReg = {{ valores | tojson }};
+
+    new Chart(ctxReg, {
+        type: 'bar',
+        data: {
+            labels: etiquetasReg,
+            datasets: [{
+                label: 'Denuncias por región',
+                data: datosReg,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

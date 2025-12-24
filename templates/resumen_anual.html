@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Resumen anual - Analítica de Denuncias{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Resumen Anual de Denuncias</h1>
+
+<!-- Gráfico de barras -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <canvas id="graficoAnual"></canvas>
+    </div>
+</div>
+
+<!-- Tabla de totales por año -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5>Tabla de Totales por Año</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Año</th>
+                    <th>Total denuncias</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in tabla %}
+                    <tr>
+                        <td>{{ fila["_id"] }}</td>
+                        <td>{{ fila["total"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Obtenemos el canvas
+    const ctx = document.getElementById('graficoAnual');
+
+    // Datos enviados desde Flask (siempre definidos: labels y valores)
+    const etiquetas = {{ labels | tojson }};
+    const datos = {{ valores | tojson }};
+
+    // Configurar y dibujar el gráfico con Chart.js
+    const grafico = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: etiquetas,
+            datasets: [{
+                label: 'Denuncias por año',
+                data: datos,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+
+{% endblock %}
