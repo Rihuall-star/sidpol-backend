@@ -16,12 +16,15 @@ def preparar_mensual(col, modalidad=None):
         match["P_MODALIDADES"] = modalidad
 
     pipeline = [
-        {"$match": match},
-        {"$group": {
-            "_id": {"anio": "$ANIO", "mes": "$MES"},
-            "total": {"$sum": "$cantidad"}
-        }},
-        {"$sort": {"_id.anio": 1, "_id.mes": 1}}
+    {
+        "$group": {
+            # IZQUIERDA: El nombre que quiere Python ("anio")
+            # DERECHA: El nombre real que tiene la Nube ("$ANIO")
+            "_id": { "anio": "$ANIO", "mes": "$MES" }, 
+            "total": { "$sum": 1 }
+        }
+    },
+    {"$sort": {"_id.anio": 1, "_id.mes": 1}}
     ]
 
     datos = list(col.aggregate(pipeline))

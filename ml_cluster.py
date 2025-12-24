@@ -11,11 +11,14 @@ def preparar_matriz_departamento(col):
     valores = cantidad total (2018–2025)
     """
     pipeline = [
-        {"$group": {
-            "_id": {"dpto": "$DPTO_HECHO_NEW", "mod": "$P_MODALIDADES"},
-            "total": {"$sum": "$cantidad"}
-        }}
-    ]
+    {
+        "$group": {
+            # Mapeamos: Python recibe "dpto", pero Mongo lee "$DPTO_HECHO_NEW"
+            "_id": { "dpto": "$DPTO_HECHO_NEW", "anio": "$ANIO" },
+            "total": { "$sum": 1 }
+        }
+    }
+   ]
     datos = list(col.aggregate(pipeline))
     if not datos:
         return pd.DataFrame()
