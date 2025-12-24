@@ -4,50 +4,38 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
-    # --- PASO 1: DEFINIMOS LA VARIABLE PRIMERO ---
+    # 1. Filtro
     match_filter = {}
     if modalidad:
         match_filter["P_MODALIDADES"] = modalidad
 
-    # --- PASO 2: AHORA SÍ LA USAMOS EN EL PIPELINE ---
+    # 2. Pipeline
     pipeline = [
-        {
-            "$match": match_filter  # <--- Python ya la conoce porque la definimos arriba
-        },
+        { "$match": match_filter },
         {
             "$group": {
-                "_id": { "anio": "$ANIO", "mes": "$MES" },
+                # --- OJO AQUÍ ---
+                # IZQUIERDA (Minúscula): Es el nombre que usaremos en Python.
+                # DERECHA (Mayúscula): Es la columna de la Base de Datos.
+                "_id": { 
+                    "anio": "$ANIO",  # <--- Etiqueta "anio"
+                    "mes": "$MES"     # <--- Etiqueta "mes"
+                },
                 "total": { "$sum": 1 }
             }
         },
-        {
-            "$sort": { "_id.anio": 1, "_id.mes": 1 }
-        }
+        { "$sort": { "_id.anio": 1, "_id.mes": 1 } }
     ]
 
-    # --- PASO 3: EJECUTAMOS ---
+    # 3. Ejecutar
     resultados = list(col.aggregate(pipeline))
     
+    # 4. Procesar
     datos_procesados = []
     for d in resultados:
         datos_procesados.append({
-            "anio": d["_id"]["anio"],
-            "mes": d["_id"]["mes"],
-            "total": d["total"]
-        })
-
-    import pandas as pd
-    df = pd.DataFrame(datos_procesados)
-    return df
-
-    # --- PASO 3: EJECUTAR ---
-    resultados = list(col.aggregate(pipeline))
-    
-    datos_procesados = []
-    for d in resultados:
-        datos_procesados.append({
-            "anio": d["_id"]["anio"],
-            "mes": d["_id"]["mes"],
+            "anio": d["_id"]["anio"], # Busca "anio" (coincide con la izquierda de arriba)
+            "mes": d["_id"]["mes"],   # Busca "mes" (coincide con la izquierda de arriba)
             "total": d["total"]
         })
 

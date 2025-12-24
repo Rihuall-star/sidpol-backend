@@ -4,35 +4,35 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 def preparar_matriz_departamento(col):
-    # --- PASO 1: DEFINIMOS LA VARIABLE PRIMERO ---
+    # 1. Filtro
     match_filter = { "ANIO": { "$ne": None } }
 
-    # --- PASO 2: AHORA SÍ LA USAMOS EN EL PIPELINE ---
+    # 2. Pipeline
     pipeline = [
-        {
-            "$match": match_filter # <--- Python ya la conoce
-        },
+        { "$match": match_filter },
         {
             "$group": {
+                # --- OJO AQUÍ ---
                 "_id": { 
-                    "dpto": "$DPTO_HECHO_NEW", 
-                    "mod": "$P_MODALIDADES",
-                    "anio": "$ANIO" 
+                    "dpto": "$DPTO_HECHO_NEW", # <--- Etiqueta "dpto" (minúscula)
+                    "mod": "$P_MODALIDADES",   # <--- Etiqueta "mod" (minúscula)
+                    "anio": "$ANIO"            # <--- Etiqueta "anio" (minúscula)
                 },
                 "total": { "$sum": 1 }
             }
         }
     ]
 
-    # --- PASO 3: EJECUTAMOS ---
+    # 3. Ejecutar
     resultados = list(col.aggregate(pipeline))
 
+    # 4. Procesar
     datos = []
     for d in resultados:
         datos.append({
-            "departamento": d["_id"]["dpto"],
-            "modalidad": d["_id"]["mod"],
-            "anio": d["_id"]["anio"],
+            "departamento": d["_id"]["dpto"], # Busca "dpto"
+            "modalidad": d["_id"]["mod"],     # Busca "mod"
+            "anio": d["_id"]["anio"],         # Busca "anio"
             "total": d["total"]
         })
     
