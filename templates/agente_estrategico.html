@@ -1,71 +1,29 @@
-{% extends "base.html" %}
-
-{% block title %}Agente Estratega - SIDPOL{% endblock %}
-
+{% extends "layout.html" %}
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h1 class="display-5 fw-bold text-primary">
-                <i class="bi bi-robot"></i> Agente "Centinela" de Políticas Públicas
-            </h1>
-            <p class="lead text-muted">
-                Este módulo autónomo analiza las predicciones matemáticas y genera estrategias de mitigación en tiempo real.
-            </p>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card shadow border-0 bg-light mb-3">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-secondary">Alerta Predictiva 2026</h5>
-                    <hr>
-                    <h2 class="display-4 fw-bold text-danger">
-                        {{ "+%.1f"|format(incremento) }}%
-                    </h2>
-                    <p class="text-muted">Incremento proyectado vs 2024</p>
-                    
-                    <div class="alert alert-warning mt-3">
-                        <strong>Cifra Estimada:</strong><br>
-                        {{ "{:,.0f}".format(prediccion) }} Denuncias
-                    </div>
+<div class="container mt-4">
+    <div class="card shadow border-0 p-4 bg-light">
+        <h2 class="text-dark"><i class="fas fa-brain"></i> Agente Estratégico: Análisis Predictivo</h2>
+        <hr>
+        <div class="row align-items-center">
+            <div class="col-md-6 text-center">
+                <div class="p-4 bg-white rounded shadow-sm">
+                    <h5>Impacto Esperado (2026)</h5>
+                    <h1 class="text-primary">{{ total }}</h1>
+                    <p class="text-muted">Casos Totales Estimados</p>
                 </div>
             </div>
-            
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <small class="text-muted">
-                        <strong>Funcionamiento del Agente:</strong><br>
-                        1. El modelo de Regresión Lineal calcula la cifra futura.<br>
-                        2. El Agente compara con datos históricos.<br>
-                        3. Gemini AI procesa el escenario y diseña contramedidas.
-                    </small>
+            <div class="col-md-6">
+                <div class="card border-primary p-3">
+                    <h5 class="text-primary font-italic">"Análisis Estratégico de la IA"</h5>
+                    <p class="lead" id="analisis-ia">
+                        {{ analisis }}
+                    </p>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-8">
-            <div class="card shadow-lg border-primary">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <span class="fw-bold">INFORME GENERADO POR IA</span>
-                    <span class="badge bg-light text-dark">Modelo: Gemini 2.5</span>
-                </div>
-                <div class="card-body">
-                    <div class="card-text">
-                        {{ analisis | safe }}
-                    </div>
-                </div>
-                <div class="card-footer text-muted text-end">
-                    Generado automáticamente el: <span id="fechaHoy"></span>
-                </div>
-            </div>
+        <div class="mt-4 alert alert-secondary border-0">
+            <strong>Recomendación Estratégica:</strong> Basado en el volumen de {{ total }} incidentes, se recomienda ajustar el presupuesto operativo anual en un 15% para cubrir las zonas críticas detectadas por el Agente Logístico.
         </div>
     </div>
 </div>
-
-<script>
-    // Poner fecha de hoy
-    document.getElementById("fechaHoy").innerText = new Date().toLocaleDateString();
-</script>
 {% endblock %}

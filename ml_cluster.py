@@ -1,38 +1,54 @@
-def preparar_matriz_departamento(col):
-    # 1. Filtro
-    match_filter = { "ANIO": { "$ne": None } }
+import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
-    # 2. Pipeline
+def preparar_matriz_departamento(col):
     pipeline = [
-        { "$match": match_filter },
         {
             "$group": {
                 "_id": { 
                     "dpto": "$DPTO_HECHO_NEW", 
-                    "mod": "$P_MODALIDADES",
-                    "anio": "$ANIO" 
+                    "mod": "$P_MODALIDADES" 
                 },
                 "total": { "$sum": 1 }
             }
         }
     ]
-
+    
     resultados = list(col.aggregate(pipeline))
-
     datos = []
     for d in resultados:
-        # --- CÓDIGO BLINDADO ---
-        id_doc = d.get("_id", {})
-        
-        val_dpto = id_doc.get("dpto") or id_doc.get("DPTO_HECHO_NEW") or "DESCONOCIDO"
-        val_mod = id_doc.get("mod") or id_doc.get("P_MODALIDADES") or "DESCONOCIDO"
-        val_anio = id_doc.get("anio") or id_doc.get("ANIO") or 0
-
+        id_data = d.get("_id", {})
         datos.append({
-            "departamento": val_dpto,
-            "modalidad": val_mod,
-            "anio": val_anio,
-            "total": d.get("total", 0)
+            "departamento": id_data.get("dpto") or "OTRO",
+            "modalidad": id_data.get("mod") or "OTRO",
+            "cantidad": d.get("total") or 0
         })
-    
     return datos
+
+def clusterizar_departamentos(col, n_clusters=3):
+    datos = preparar_matriz_departamento(col)
+    if not datos:
+        return []
+        
+    df = pd.DataFrame(datos)
+    # Pivotar para tener modalidades como columnas y departamentos como filas
+    matrix = df.pivot_table(index='departamento', columns='modalidad', values='cantidad', fill_value=0)
+    
+    # Escalar datos
+    scaler = StandardScaler()
+    matrix_scaled = scaler.fit_transform(matrix)
+    
+    # KMeans
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    matrix['cluster'] = kmeans.fit_predict(matrix_scaled)
+    
+    # Formatear para el frontend
+    resultado_final = []
+    for dpto, row in matrix.iterrows():
+        resultado_final.append({
+            "departamento": dpto,
+            "cluster": int(row['cluster']),
+            "riesgo": "Alto" if row['cluster'] == 0 else "Medio" if row['cluster'] == 1 else "Bajo"
+        })
+    return resultado_final

@@ -1,43 +1,45 @@
-{% extends "base.html" %}
-
-{% block title %}Logística Policial Inteligente{% endblock %}
-
+{% extends "layout.html" %}
 {% block content %}
-<div class="container">
-    <div class="text-center mb-5">
-        <h1 class="fw-bold text-success"><i class="bi bi-shield-shaded"></i> Agente de Logística Táctica</h1>
-        <p class="lead">Distribución de recursos basada en Algoritmos de Clustering y Razonamiento Artificial.</p>
-    </div>
-
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card bg-dark text-white mb-3">
-                <div class="card-header">Recursos Disponibles</div>
-                <div class="card-body">
-                    <h3 class="text-warning">500</h3>
-                    <p>Efectivos DINOES</p>
-                    <hr>
-                    <h3 class="text-info">50</h3>
-                    <p>Patrulleros IA</p>
-                </div>
-            </div>
-            <div class="alert alert-info">
-                <small>Este agente analiza los grupos formados por K-Means y asigna recursos donde el algoritmo detecta mayor densidad criminal.</small>
-            </div>
-        </div>
-
-        <div class="col-md-9">
-            <div class="card shadow">
-                <div class="card-header bg-success text-white">
-                    <strong>ORDEN DE OPERACIONES #001-2025</strong>
-                </div>
-                <div class="card-body">
-                    {{ plan | safe }}
-                </div>
-                <div class="card-footer text-muted">
-                    Autorizado por: IA Logística Central (SIDPOL)
-                </div>
-            </div>
+<div class="container mt-4">
+    <div class="card shadow border-0 p-4">
+        <h2 class="text-danger"><i class="fas fa-shuttle-van"></i> Agente Logístico: Segmentación de Riesgo</h2>
+        <p>Los departamentos han sido agrupados mediante IA (K-Means) para optimizar el despliegue de recursos.</p>
+        
+        <div class="table-responsive mt-3">
+            <table class="table table-hover border">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Departamento</th>
+                        <th>Clúster</th>
+                        <th>Nivel de Prioridad</th>
+                        <th>Acción Sugerida</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in clusters %}
+                    <tr>
+                        <td><strong>{{ item.departamento }}</strong></td>
+                        <td>{{ item.cluster }}</td>
+                        <td>
+                            {% if item.riesgo == "Alto" %}
+                                <span class="badge badge-danger">🔥 ALTO</span>
+                            {% elif item.riesgo == "Medio" %}
+                                <span class="badge badge-warning">⚠️ MEDIO</span>
+                            {% else %}
+                                <span class="badge badge-success">✅ BAJO</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.riesgo == "Alto" %}
+                                Refuerzo inmediato de unidades
+                            {% else %}
+                                Monitoreo preventivo
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

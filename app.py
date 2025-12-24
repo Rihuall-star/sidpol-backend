@@ -468,47 +468,18 @@ def regiones():
 #  RUTA: Predicción delitos 2026
 # ============================================================
 
-@app.route("/prediccion-2026")
+@app.route('/prediccion-2026')
 @login_required
 def prediccion_2026():
-    # 1) Serie histórica + predicción total
-    (
-        total_pred_2026,
-        hist_labels,
-        hist_values,
-        pred_labels,
-        pred_values
-    ) = predecir_total_2026(col)
-
-    # 2) Predicción por modalidad (escogemos las principales)
-    modalidades_top = [
-        "Hurto",
-        "Robo",
-        "Estafa",
-        "Extorsión",
-        "Homicidio",
-        "Violencia contra la mujer e integrantes",
-        "Otros",
-    ]
-    pred_modalidades = predecir_2026_por_modalidad(col, modalidades_top)
-
-    mod_labels = [r["modalidad"] for r in pred_modalidades]
-    mod_values = [r["total_pred_2026"] for r in pred_modalidades]
-
-    return render_template(
-        "prediccion_2026.html",
-        total_pred_2026=total_pred_2026,
-        # para gráfico histórico vs predicción
-        hist_labels=hist_labels,
-        hist_values=hist_values,
-        pred_labels=pred_labels,
-        pred_values=pred_values,
-        # para gráfico por modalidad
-        mod_labels=mod_labels,
-        mod_values=mod_values,
-        # para la tabla
-        pred_modalidades=pred_modalidades,
-    )
+    # USAR LA COLECCIÓN CORRECTA
+    col = db['simulaciones_riesgo'] 
+    
+    total, etiquetas, valores, historico, anios = predecir_total_2026(col)
+    
+    return render_template('prediccion.html', 
+                           total=total, 
+                           etiquetas=etiquetas, 
+                           valores=valores)
 
 # ============================================================
 #  CHAT IA: Conversar con Gemini + Dataset real
@@ -834,49 +805,15 @@ def reporte_lima():
 @app.route('/agente-estrategico')
 @login_required
 def agente_estrategico():
-    # 1. OBTENER EL DATO DURO (Predicción Futura)
-    # total_2026 es un número (float), NO una función
+    col = db['simulaciones_riesgo']
     total_2026, _, _, _, _ = predecir_total_2026(col)
     
-    # 2. OBTENER EL DATO ACTUAL (Histórico Real)
-    # Aquí usamos la función 'total_denuncias' para consultar el 2024
-    # Si no tienes datos de 2024 completos, puedes probar con 2023
-    total_actual = total_denuncias(col, anio=2024) 
+    # Aquí puedes agregar lógica de IA para comentar el resultado
+    mensaje_ia = f"Se proyecta un total de {total_2026} incidentes para el próximo año."
     
-    # Validación para evitar división por cero si la base está vacía
-    if total_actual == 0:
-        total_actual = 1 # Evitar error matemático
-        
-    # Calculamos el incremento porcentual proyectado
-    diferencia = total_2026 - total_actual
-    porcentaje = (diferencia / total_actual) * 100
-    
-    # 3. DEFINIR EL PROMPT PARA GEMINI
-    prompt_agente = f"""
-    Actúa como un Consultor Internacional en Seguridad Pública.
-    
-    DATOS:
-    - Denuncias actuales (ref 2024): {total_actual:,.0f}
-    - Proyección matemática para 2026: {total_2026:,.0f}
-    - Tendencia: Un cambio del {porcentaje:.2f}%
-    
-    TAREA:
-    Redacta un "Plan de Acción Estratégico 2026" breve con:
-    1. Un título profesional.
-    2. Tres (3) medidas concretas y tecnológicas para mitigar este escenario.
-    3. Una conclusión final.
-    
-    Usa formato HTML simple (<h3>, <ul>, <li>, <b>).
-    """
-
-    # 4. CONSULTAR A LA IA
-    analisis_ia = preguntar_gemini(prompt_agente)
-    
-    # 5. RENDERIZAR
     return render_template('agente_estrategico.html', 
-                           prediccion=total_2026, 
-                           incremento=porcentaje,
-                           analisis=analisis_ia)
+                           total=total_2026, 
+                           analisis=mensaje_ia)
 
 # ============================================================
 # RUN Agente de Asignación Táctica
@@ -884,43 +821,9 @@ def agente_estrategico():
 @app.route('/agente-logistico')
 @login_required
 def agente_logistico():
-    # 1. OBTENER LOS CLUSTERS
-    # Tu función devuelve una lista, así que la guardamos en una variable genérica
-    datos_clusters = clusterizar_departamentos(col, n_clusters=3)
-    
-    # 2. PREPARAR DATOS PARA LA IA
-    # Convertimos todo a texto (string) directamente. 
-    # Esto funciona si es Lista, Diccionario o DataFrame. No fallará.
-    info_para_ia = str(datos_clusters)
-
-    # 3. DEFINIR EL PROMPT TÁCTICO
-    prompt_logistica = f"""
-    Actúa como el General Director de Operaciones Policiales.
-    
-    SITUACIÓN TÁCTICA:
-    Se ha aplicado un algoritmo K-Means para agrupar los departamentos según perfil criminal.
-    Aquí tienes los datos crudos de los clusters:
-    {info_para_ia}
-    
-    RECURSOS DISPONIBLES:
-    - 500 efectivos de fuerzas especiales (DINOES).
-    - 50 patrulleros inteligentes con IA.
-    
-    MISIÓN:
-    Analiza los datos anteriores. Identifica qué grupo (Cluster) parece contener los departamentos más críticos (busca nombres como LIMA, LA LIBERTAD, CALLAO en la lista) y asigna prioridad.
-    
-    ENTREGABLE:
-    Genera una "Orden de Operaciones" en formato HTML (usa una tabla bonita con clases de Bootstrap) indicando:
-    1. Región Objetivo.
-    2. Cantidad de efectivos asignados.
-    3. Cantidad de patrulleros asignados.
-    4. Justificación breve (ej: "Alta incidencia detectada en Cluster X").
-    """
-
-    # 4. CONSULTAR A GEMINI
-    orden_operaciones = preguntar_gemini(prompt_logistica)
-    
-    return render_template('agente_logistico.html', plan=orden_operaciones)
+    col = db['simulaciones_riesgo']
+    datos_clusters = clusterizar_departamentos(col)
+    return render_template('agente_logistico.html', clusters=datos_clusters)
 
 # --- IMPORTANTE: Asegúrate de tener esto arriba del todo ---
 # from werkzeug.security import generate_password_hash

@@ -1,166 +1,46 @@
-{% extends "base.html" %}
-
-{% block title %}Predicción 2026 - Analítica de Denuncias{% endblock %}
-
+{% extends "layout.html" %}
 {% block content %}
-
-<h1 class="mb-4">Predicción de Denuncias para el 2026</h1>
-
-<div class="row mb-4">
-    <!-- Tarjeta total predicho -->
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h5 class="card-title">Pronóstico total 2026 (julio–diciembre)</h5>
-                <p class="display-5">
-                    {{ total_pred_2026 | round(0) | int }}
-                </p>
-                <p class="text-muted">
-                    Estimación obtenida con un modelo de regresión lineal
-                    sobre la serie mensual de denuncias 2018–2025.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Explicación breve del modelo -->
-    <div class="col-md-8">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h5 class="card-title">Resumen metodológico</h5>
-                <p>
-                    Para este pronóstico se utilizó un modelo de
-                    <strong>regresión lineal</strong> donde:
-                </p>
-                <ul>
-                    <li>Variable independiente <strong>t</strong>: número de mes en la serie histórica.</li>
-                    <li>Variable dependiente <strong>d</strong>: total de denuncias por mes.</li>
-                    <li>Datos históricos: enero 2018 a diciembre 2025.</li>
-                    <li>Proyección: julio a diciembre 2026 (6 meses).</li>
-                </ul>
-                <p class="text-muted mb-0">
-                    Esta sección permite evidenciar el componente de inteligencia artificial
-                    (Machine Learning) integrado a la aplicación web.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Gráfico 1: Histórico vs Predicción -->
-<div class="card mb-4 shadow-sm">
-    <div class="card-body">
-        <h5 class="card-title">Serie histórica vs proyección 2026</h5>
-        <canvas id="graficoHistorico"></canvas>
-        <p class="text-muted mt-2">
-            La línea azul muestra la evolución histórica mensual de denuncias,
-            mientras que la línea roja discontinua representa la proyección para los
-            meses de julio a diciembre de 2026.
-        </p>
-    </div>
-</div>
-
-<!-- Gráfico 2 + tabla: Predicción por modalidad -->
-<div class="card mb-4 shadow-sm">
-    <div class="card-body">
-        <h5 class="card-title">Pronóstico por modalidad delictiva (julio–diciembre 2026)</h5>
-
+<div class="container mt-4">
+    <div class="card shadow border-0 p-4 text-center">
+        <h2 class="text-primary">📈 Proyección de Incidencias 2026</h2>
+        <p class="lead">Basado en tendencias históricas de la base de datos.</p>
+        <hr>
         <div class="row">
-            <div class="col-md-7">
-                <canvas id="graficoModalidades2026"></canvas>
+            <div class="col-md-4">
+                <div class="alert alert-info">
+                    <h4>Total Proyectado</h4>
+                    <h1 class="display-4 font-weight-bold">{{ total }}</h1>
+                    <p>Incidencias estimadas para el año 2026</p>
+                </div>
             </div>
-            <div class="col-md-5">
-                <table class="table table-striped mt-3 mt-md-0">
-                    <thead>
-                        <tr>
-                            <th>Modalidad</th>
-                            <th>Denuncias estimadas</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fila in pred_modalidades %}
-                            <tr>
-                                <td>{{ fila.modalidad }}</td>
-                                <td>{{ fila.total_pred_2026 }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <p class="text-muted">
-                    Las cifras corresponden a la suma de las denuncias proyectadas para
-                    los meses de julio a diciembre de 2026, por cada modalidad.
-                </p>
+            <div class="col-md-8">
+                <canvas id="graficoPrediccion" height="150"></canvas>
             </div>
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // ===== Gráfico 1: histórico vs predicción =====
-    const ctxHist = document.getElementById('graficoHistorico');
-
-    const histLabels = {{ hist_labels | tojson }};
-    const histValues = {{ hist_values | tojson }};
-    const predLabels = {{ pred_labels | tojson }};
-    const predValues = {{ pred_values | tojson }};
-
-    // Unimos etiquetas para que Chart.js lo muestre en una sola escala
-    const allLabels = histLabels.concat(predLabels);
-
-    // Para dibujar dos líneas en el mismo gráfico, armamos datasets separados
-    const datosHistoricos = {
-        label: 'Histórico 2018–2025',
-        data: histValues.concat(Array(predLabels.length).fill(null)),
-        borderWidth: 2,
-        tension: 0.1
-    };
-
-    const datosPrediccion = {
-        label: 'Predicción 2026 (jul–dic)',
-        data: Array(histLabels.length).fill(null).concat(predValues),
-        borderWidth: 2,
-        borderDash: [5, 5],
-        tension: 0.1
-    };
-
-    new Chart(ctxHist, {
+    const ctx = document.getElementById('graficoPrediccion').getContext('2d');
+    new Chart(ctx, {
         type: 'line',
         data: {
-            labels: allLabels,
-            datasets: [datosHistoricos, datosPrediccion]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: { beginAtZero: true }
-            }
-        }
-    });
-
-    // ===== Gráfico 2: predicción por modalidad =====
-    const ctxMod2026 = document.getElementById('graficoModalidades2026');
-
-    const modLabels = {{ mod_labels | tojson }};
-    const modValues = {{ mod_values | tojson }};
-
-    new Chart(ctxMod2026, {
-        type: 'bar',
-        data: {
-            labels: modLabels,
+            labels: {{ etiquetas | tojson }},
             datasets: [{
-                label: 'Denuncias estimadas 2026 (jul–dic)',
-                data: modValues,
-                borderWidth: 1
+                label: 'Proyección Mensual 2026',
+                data: {{ valores | tojson }},
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.3
             }]
         },
         options: {
             responsive: true,
-            indexAxis: 'y',
-            scales: {
-                x: { beginAtZero: true }
-            }
+            scales: { y: { beginAtZero: true } }
         }
     });
 </script>
-
 {% endblock %}
