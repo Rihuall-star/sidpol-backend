@@ -16,13 +16,12 @@ def preparar_matriz_departamento(col):
         },
         {
             "$group": {
-                # Mapeo Completo para Agentes:
-                # 1. Departamento: Cloud "DPTO_HECHO_NEW" -> Python "dpto"
-                # 2. Modalidad: Cloud "P_MODALIDADES" -> Python "mod"
-                # 3. Año: Cloud "ANIO" -> Python "anio"
+                # OJO AQUÍ:
+                # Izquierda ("dpto", "mod", "anio"): Minúsculas
+                # Derecha ("$DPTO...", "$P_MOD...", "$ANIO"): Mayúsculas
                 "_id": { 
                     "dpto": "$DPTO_HECHO_NEW", 
-                    "mod": "$P_MODALIDADES",
+                    "mod": "$P_MODALIDADES",   # <--- Este es el que te faltaba arreglar
                     "anio": "$ANIO" 
                 },
                 "total": { "$sum": 1 }
