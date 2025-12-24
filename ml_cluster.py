@@ -12,8 +12,6 @@ def preparar_matriz_departamento(col):
         { "$match": match_filter },
         {
             "$group": {
-                # --- AQUÍ ESTÁ LA CLAVE ---
-                # Izquierda: minúsculas ("dpto", "mod", "anio")
                 "_id": { 
                     "dpto": "$DPTO_HECHO_NEW", 
                     "mod": "$P_MODALIDADES",
@@ -24,17 +22,23 @@ def preparar_matriz_departamento(col):
         }
     ]
 
-    # 3. Ejecutar
     resultados = list(col.aggregate(pipeline))
 
-    # 4. Procesar (Aquí fallaba antes)
     datos = []
     for d in resultados:
+        # --- BLINDAJE ANTI-ERROR ---
+        id_doc = d.get("_id", {})
+        
+        # Intentamos minúsculas, luego mayúsculas, luego un texto por defecto
+        val_dpto = id_doc.get("dpto") or id_doc.get("DPTO_HECHO_NEW") or "DESCONOCIDO"
+        val_mod = id_doc.get("mod") or id_doc.get("P_MODALIDADES") or "DESCONOCIDO"
+        val_anio = id_doc.get("anio") or id_doc.get("ANIO") or 0
+
         datos.append({
-            "departamento": d["_id"]["dpto"], # Busca "dpto"
-            "modalidad": d["_id"]["mod"],     # Busca "mod"
-            "anio": d["_id"]["anio"],         # Busca "anio"
-            "total": d["total"]
+            "departamento": val_dpto,
+            "modalidad": val_mod,
+            "anio": val_anio,
+            "total": d.get("total", 0)
         })
     
     return datos

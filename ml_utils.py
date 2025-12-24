@@ -4,39 +4,41 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
-    # 1. Definimos filtro
+    # 1. Filtro
     match_filter = {}
     if modalidad:
         match_filter["P_MODALIDADES"] = modalidad
 
-    # 2. Pipeline
+    # 2. Pipeline (Intentamos estandarizar a minúsculas)
     pipeline = [
         { "$match": match_filter },
         {
             "$group": {
-                # --- AQUÍ ESTÁ LA CLAVE ---
-                # Izquierda ("anio", "mes"): Minúsculas (Para que Python lo lea)
-                # Derecha ("$ANIO", "$MES"): Mayúsculas (Para leer de la Nube)
-                "_id": { 
-                    "anio": "$ANIO", 
-                    "mes": "$MES" 
-                },
+                "_id": { "anio": "$ANIO", "mes": "$MES" },
                 "total": { "$sum": 1 }
             }
         },
         { "$sort": { "_id.anio": 1, "_id.mes": 1 } }
     ]
 
-    # 3. Ejecutar
     resultados = list(col.aggregate(pipeline))
     
-    # 4. Procesar (Aquí es donde fallaba antes)
     datos_procesados = []
     for d in resultados:
+        # --- BLINDAJE ANTI-ERROR ---
+        # Obtenemos el diccionario _id de forma segura
+        id_doc = d.get("_id", {})
+        
+        # Buscamos 'anio' O 'ANIO'. Si no hay nada, ponemos 0.
+        val_anio = id_doc.get("anio") or id_doc.get("ANIO") or 0
+        
+        # Buscamos 'mes' O 'MES'. Si no hay nada, ponemos 0.
+        val_mes = id_doc.get("mes") or id_doc.get("MES") or 0
+        
         datos_procesados.append({
-            "anio": d["_id"]["anio"], # Busca "anio" (coincide con la izquierda de arriba)
-            "mes": d["_id"]["mes"],   # Busca "mes" (coincide con la izquierda de arriba)
-            "total": d["total"]
+            "anio": val_anio,
+            "mes": val_mes,
+            "total": d.get("total", 0)
         })
 
     import pandas as pd
