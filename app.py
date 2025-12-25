@@ -896,33 +896,7 @@ def espiar_datos():
         return f"<h1>Lo que hay en la base de datos:</h1><p>{str(dato)}</p>"
     except Exception as e:
         return f"<h1>Error espiando:</h1><p>{str(e)}</p>"
-@app.route('/espiar-datos')
-def espiar_datos():
-    try:
-        # PRIMER INTENTO: Ver simulaciones_riesgo
-        col_riesgo = db['simulaciones_riesgo']
-        dato_riesgo = col_riesgo.find_one()
 
-        # SEGUNDO INTENTO: Ver denuncias (por si acaso los datos están aquí)
-        col_denuncias = db['denuncias']
-        dato_denuncias = col_denuncias.find_one()
-
-        html = f"""
-        <style>body{{font-family:monospace; padding:20px;}} h2{{color:blue;}} pre{{background:#f0f0f0; padding:10px;}}</style>
-        
-        <h2>1. Colección 'simulaciones_riesgo'</h2>
-        <p>¿Tiene datos? {'✅ SÍ' if dato_riesgo else '❌ NO (Está vacía)'}</p>
-        <pre>{str(dato_riesgo) if dato_riesgo else 'Vacío'}</pre>
-        
-        <hr>
-        
-        <h2>2. Colección 'denuncias'</h2>
-        <p>¿Tiene datos? {'✅ SÍ' if dato_denuncias else '❌ NO (Está vacía)'}</p>
-        <pre>{str(dato_denuncias) if dato_denuncias else 'Vacío'}</pre>
-        """
-        return html
-    except Exception as e:
-        return f"<h1>Error espiando:</h1><p>{str(e)}</p>"
 
 
 if __name__ == "__main__":
