@@ -792,8 +792,8 @@ def reporte_lima():
 # ============================================================
 # --- IMPORTACIONES ---
 # Agrega esto arriba junto a los otros imports
-from ml_llm import consultar_estratega_ia
-from ml_utils import obtener_contexto_ia, predecir_total_2026 # Asegúrate de que existan
+from ml_utils import predecir_total_2026, obtener_contexto_ia
+from ml_llm import consultar_estratega_ia # Asegúrate de que existan
 
 # ... (Resto de tu código) ...
 
