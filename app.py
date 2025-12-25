@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from ml_llm import consultar_estratega_ia, analizar_riesgo_ia
 from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
+from ml_llm import  consultar_chat_general
 
 from flask import (
     Flask, render_template, request, redirect,
@@ -494,15 +495,20 @@ def chat_ia():
     if request.method == 'POST':
         mensaje_usuario = request.form.get('mensaje')
         
-        # Aquí llamas a tu función de IA
-        # respuesta_ia = consultar_gemini_general(mensaje_usuario)
+        # --- AQUÍ ESTABA EL "PLACEHOLDER", LO CAMBIAMOS POR LA IA REAL ---
         
-        # Simulación por si no tienes la función general lista:
-        respuesta_ia = "Recibido: " + mensaje_usuario + ". (Aquí responderá Gemini 2.5)"
+        # Antes (lo que tienes ahora):
+        # respuesta_ia = "Recibido: " + mensaje_usuario + "..."
         
+        # AHORA (La conexión real):
+        if mensaje_usuario:
+            respuesta_ia = consultar_chat_general(mensaje_usuario)
+        else:
+            respuesta_ia = "No entendí tu mensaje."
+            
         return jsonify({'respuesta': respuesta_ia})
         
-    return render_template('chat_ia.html') # Opcional si tienes página dedicada
+    return render_template('layout.html') # O retorna un 200 simple
 
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)

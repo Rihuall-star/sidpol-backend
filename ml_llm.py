@@ -56,3 +56,33 @@ def analizar_riesgo_ia(prediccion, modalidad, departamento, trimestre, anio):
         return response.text
     except Exception as e:
         return f"Análisis no disponible por el momento."
+    
+# --- AGREGAR AL FINAL DE ml_llm.py ---
+
+def consultar_chat_general(mensaje_usuario):
+    """
+    Función para el Chatbot Flotante (Estilo Cisco).
+    Responde preguntas generales sobre seguridad o el sistema.
+    """
+    if not configurar_gemini():
+        return "Error de configuración: API Key no detectada."
+
+    prompt = f"""
+    Eres el Asistente Virtual Inteligente de SIDPOL (Sistema de Inteligencia Policial).
+    Tu objetivo es asistir a oficiales y analistas.
+    
+    PREGUNTA DEL USUARIO: "{mensaje_usuario}"
+    
+    INSTRUCCIONES:
+    - Responde de forma concisa, profesional y útil.
+    - Si te preguntan quién eres, di que eres el Asistente IA de SIDPOL basado en Gemini 2.5.
+    - Si te piden datos exactos, indica que pueden consultarlos en los módulos de 'Predicción' o 'Agente Logístico'.
+    - Mantén un tono de servicio policial.
+    """
+
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return "Lo siento, mi enlace con la central de IA está inestable. Intente de nuevo."
