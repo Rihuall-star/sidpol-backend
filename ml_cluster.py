@@ -3,16 +3,15 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 def preparar_matriz_departamento(col):
-    # Pipeline ajustado a tus campos reales
     pipeline = [
         {
             "$group": {
                 "_id": { 
-                    "dpto": "$departamento",  # Nombre real
-                    "mod": "$modalidad",      # Nombre real
-                    "anio": "$anio"           # Nombre real
+                    "dpto": "$departamento",  # Nombre real (minúscula)
+                    "mod": "$modalidad",      # Nombre real (minúscula)
+                    "anio": "$anio"
                 },
-                "total": { "$sum": "$prediccion" } # Sumamos el valor pre-calculado
+                "total": { "$sum": "$prediccion" } # Sumamos el valor 'prediccion'
             }
         }
     ]
@@ -38,24 +37,24 @@ def clusterizar_departamentos(col, n_clusters=3):
         
     df = pd.DataFrame(datos)
     
-    # Agrupar por departamento (sumando todas las modalidades y años)
+    # Agrupar por departamento
     matrix = df.pivot_table(index='departamento', columns='modalidad', values='cantidad', aggfunc='sum', fill_value=0)
     
     if matrix.empty:
         return []
 
-    # Ajuste dinámico de clusters si hay pocos datos
+    # Ajuste para evitar errores si hay pocos departamentos
     n_registros = len(matrix)
     k_real = min(n_clusters, n_registros)
     
     if k_real < 2:
-        # Si hay muy pocos departamentos, devolvemos resultado directo sin IA
+        # Si solo hay 1 departamento, devolvemos directo sin IA
         resultado = []
         for dpto, row in matrix.iterrows():
             resultado.append({
                 "departamento": dpto,
                 "cluster": 0,
-                "riesgo": "Datos insuficientes para comparar"
+                "riesgo": "Datos insuficientes"
             })
         return resultado
 
@@ -66,7 +65,7 @@ def clusterizar_departamentos(col, n_clusters=3):
     kmeans = KMeans(n_clusters=k_real, random_state=42, n_init=10)
     matrix['cluster'] = kmeans.fit_predict(matrix_scaled)
     
-    # Determinar riesgo (quién tiene más delitos)
+    # Determinar Riesgo
     cluster_risk = matrix.groupby('cluster').sum().sum(axis=1).sort_values(ascending=False)
     risk_labels = {c_id: label for c_id, label in zip(cluster_risk.index, ["Alto", "Medio", "Bajo"])}
 
@@ -78,5 +77,9 @@ def clusterizar_departamentos(col, n_clusters=3):
             "cluster": c_id,
             "riesgo": risk_labels.get(c_id, "Bajo")
         })
+    
+    # Ordenar por riesgo (Alto primero)
+    orden = {"Alto": 0, "Medio": 1, "Bajo": 2}
+    resultado_final.sort(key=lambda x: orden.get(x["riesgo"], 3))
         
     return resultado_final
