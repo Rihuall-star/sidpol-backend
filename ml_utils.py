@@ -88,4 +88,26 @@ def predecir_total_2026(col):
     
     total_2026 = int(predicciones.sum())
     
-    #
+    # Retornamos los datos necesarios para Chart.js
+    return total_2026, meses_txt, predicciones.tolist(), df['total'].tail(12).tolist(), df['anio'].tail(12).tolist()
+
+def obtener_contexto_ia(col):
+    """
+    USADO POR: Ruta /agente-estrategico (Gemini AI)
+    Retorna: total_2026, texto_resumen_historico
+    """
+    # Reutilizamos la lógica de predicción para consistencia
+    # OJO: Aquí llamamos a predecir_total_2026 que está definida arriba
+    total_2026, _, _, historico_val, historico_anio = predecir_total_2026(col)
+    
+    if total_2026 == 0:
+        return 0, "Datos insuficientes"
+    
+    # Generamos un texto resumen de los últimos 3 meses reales
+    texto_contexto = ""
+    limit = min(3, len(historico_val))
+    # Usamos slicing negativo para obtener los últimos
+    for i in range(1, limit + 1):
+        texto_contexto += f"[{historico_anio[-i]}: {int(historico_val[-i])} casos] "
+            
+    return total_2026, texto_contexto
