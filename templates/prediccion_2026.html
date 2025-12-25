@@ -1,20 +1,31 @@
 {% extends "layout.html" %}
+
 {% block content %}
 <div class="container mt-4">
-    <div class="card shadow border-0 p-4 text-center">
-        <h2 class="text-primary">📈 Proyección de Incidencias 2026</h2>
-        <p class="lead">Basado en tendencias históricas de la base de datos.</p>
-        <hr>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="alert alert-info">
-                    <h4>Total Proyectado</h4>
-                    <h1 class="display-4 font-weight-bold">{{ total }}</h1>
-                    <p>Incidencias estimadas para el año 2026</p>
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-primary text-white">
+            <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-line"></i> Predicción de Incidentes 2026</h6>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-4 text-center mb-4 mb-md-0">
+                    <div class="p-3 border rounded bg-light">
+                        <h5 class="text-secondary">Total Proyectado 2026</h5>
+                        <h1 class="display-4 font-weight-bold text-primary">{{ total }}</h1>
+                        <p class="mb-0 text-muted">Incidentes estimados (IA)</p>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> Modelo: Regresión Lineal sobre base 'simulaciones_riesgo'.
+                        </small>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-8">
-                <canvas id="graficoPrediccion" height="150"></canvas>
+
+                <div class="col-md-8">
+                    <div class="chart-container" style="position: relative; height:300px; width:100%">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -22,24 +33,76 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('graficoPrediccion').getContext('2d');
+    // Obtenemos el contexto del canvas
+    const ctx = document.getElementById('myChart').getContext('2d');
+
+    // Datos que vienen de Python (Flask)
+    const etiquetas = {{ etiquetas | tojson }};  // Ene, Feb, Mar...
+    const valores = {{ valores | tojson }};      // 150, 160, 155...
+
+    // Configuración del Gráfico
     new Chart(ctx, {
-        type: 'line',
+        type: 'line', // Tipo de gráfico: Línea
         data: {
-            labels: {{ etiquetas | tojson }},
+            labels: etiquetas,
             datasets: [{
-                label: 'Proyección Mensual 2026',
-                data: {{ valores | tojson }},
-                borderColor: '#007bff',
-                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.3
+                label: 'Tendencia Proyectada 2026',
+                data: valores,
+                borderColor: '#4e73df', // Color de la línea (Azul Bootstrap)
+                backgroundColor: 'rgba(78, 115, 223, 0.05)', // Relleno suave
+                pointRadius: 3,
+                pointBackgroundColor: '#4e73df',
+                pointBorderColor: '#4e73df',
+                pointHoverRadius: 3,
+                pointHoverBackgroundColor: '#4e73df',
+                pointHoverBorderColor: '#4e73df',
+                pointHitRadius: 10,
+                pointBorderWidth: 2,
+                tension: 0.3, // Curvatura de la línea (0 = recta, 0.4 = curva)
+                fill: true
             }]
         },
         options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    left: 10,
+                    right: 25,
+                    top: 25,
+                    bottom: 0
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false,
+                        drawBorder: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 12
+                    }
+                },
+                y: {
+                    ticks: {
+                        maxTicksLimit: 5,
+                        padding: 10,
+                        beginAtZero: true
+                    },
+                    grid: {
+                        color: "rgb(234, 236, 244)",
+                        zeroLineColor: "rgb(234, 236, 244)",
+                        drawBorder: false,
+                        borderDash: [2],
+                        zeroLineBorderDash: [2]
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                }
+            }
         }
     });
 </script>
