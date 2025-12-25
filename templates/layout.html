@@ -1,56 +1,104 @@
-<div id="chatbot-container">
-    <button id="chatbot-trigger" onclick="toggleChat()">
-        <i class="fas fa-comment-dots fa-lg"></i>
-    </button>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>SIDPOL - Inteligencia Policial</title>
+    <link href="{{ url_for('static', filename='vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
+    <link href="{{ url_for('static', filename='css/sb-admin-2.min.css') }}" rel="stylesheet">
+</head>
 
-    <div id="chatbot-window" class="card shadow-lg">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
-            <span><i class="fas fa-robot mr-2"></i>SIDPOL AI</span>
-            <button class="btn btn-sm text-white" onclick="toggleChat()"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="chat-messages" class="card-body bg-light" style="height: 350px; overflow-y: auto;">
-            <div class="p-2 bg-white rounded mb-2 shadow-sm border">
-                <p class="mb-0 text-dark small">Soy Gemini 2.5, tu analista de seguridad. ¿En qué ayudo?</p>
+<body id="page-top">
+
+    <div id="wrapper">
+        
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url_for('index') }}">
+                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-shield-alt"></i></div>
+                <div class="sidebar-brand-text mx-3">SIDPOL <sup>v1.0</sup></div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('riesgo_modalidad') }}"><i class="fas fa-fw fa-chart-area"></i><span>Agente Logístico</span></a></li>
+        </ul>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    </nav>
+
+                <div class="container-fluid">
+                    {% block content %}{% endblock %}
+                </div>
             </div>
+            
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; SIDPOL 2025</span></div></div>
+            </footer>
         </div>
-        <div class="card-footer p-2">
-            <div class="input-group">
-                <input type="text" id="chat-input" class="form-control form-control-sm" placeholder="..." onkeypress="handleEnter(event)">
-                <div class="input-group-append">
-                    <button class="btn btn-success btn-sm" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    <div id="chatbot-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+        
+        <button onclick="toggleChat()" style="width: 60px; height: 60px; border-radius: 50%; background-color: #1cc88a; border: none; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer;">
+            <i class="fas fa-comment-dots fa-lg"></i>
+        </button>
+
+        <div id="chatbot-window" class="card shadow-lg" style="display: none; position: absolute; bottom: 75px; right: 0; width: 350px; border: none;">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
+                <span><i class="fas fa-robot mr-2"></i>SIDPOL AI</span>
+                <button class="btn btn-sm text-white" onclick="toggleChat()"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="chat-messages" class="card-body bg-light" style="height: 300px; overflow-y: auto;">
+                <div class="p-2 bg-white rounded mb-2 shadow-sm border">
+                    <p class="mb-0 text-dark small">Soy Gemini 2.5. ¿En qué puedo apoyar?</p>
+                </div>
+            </div>
+            <div class="card-footer p-2">
+                <div class="input-group">
+                    <input type="text" id="chat-input" class="form-control form-control-sm" placeholder="Consulta..." onkeypress="handleEnter(event)">
+                    <div class="input-group-append">
+                        <button class="btn btn-success btn-sm" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    function toggleChat() {
-        const w = document.getElementById('chatbot-window');
-        w.style.display = (w.style.display === 'none' || w.style.display === '') ? 'block' : 'none';
-    }
-    function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
-    
-    function sendMessage() {
-        const input = document.getElementById('chat-input');
-        const msg = input.value.trim();
-        if(!msg) return;
-
-        const chatBody = document.getElementById('chat-messages');
-        chatBody.innerHTML += `<div class="d-flex justify-content-end mb-2"><div class="p-2 bg-primary text-white rounded small" style="max-width:80%">${msg}</div></div>`;
-        input.value = '';
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        fetch('/chat-ia', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `mensaje=${encodeURIComponent(msg)}`
-        })
-        .then(r => r.json())
-        .then(data => {
-            const resp = data.respuesta || "Sin respuesta";
-            chatBody.innerHTML += `<div class="d-flex justify-content-start mb-2"><div class="p-2 bg-white border rounded small text-dark" style="max-width:85%">${resp}</div></div>`;
+    <script>
+        function toggleChat() {
+            const w = document.getElementById('chatbot-window');
+            w.style.display = (w.style.display === 'none' || w.style.display === '') ? 'block' : 'none';
+        }
+        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+            
+            const chatBody = document.getElementById('chat-messages');
+            chatBody.innerHTML += `<div class="d-flex justify-content-end mb-2"><div class="p-2 bg-primary text-white rounded small" style="max-width:80%">${msg}</div></div>`;
+            input.value = '';
             chatBody.scrollTop = chatBody.scrollHeight;
-        });
-    }
-</script>
+
+            fetch('/chat-ia', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `mensaje=${encodeURIComponent(msg)}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                const resp = data.respuesta || "Sin respuesta";
+                chatBody.innerHTML += `<div class="d-flex justify-content-start mb-2"><div class="p-2 bg-white border rounded small text-dark" style="max-width:85%">${resp}</div></div>`;
+                chatBody.scrollTop = chatBody.scrollHeight;
+            })
+            .catch(err => console.error(err));
+        }
+    </script>
+
+    <script src="{{ url_for('static', filename='vendor/jquery/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sb-admin-2.min.js') }}"></script>
+
+</body>
+</html>
