@@ -1,78 +1,56 @@
+import google.generativeai as genai
 import os
 import sys
-from openai import OpenAI
 
-# Configuración del Cliente DeepSeek
-def obtener_cliente():
-    api_key = os.getenv("DEEPSEEK_API_KEY")
+def configurar_gemini():
+    # Asegúrate de que esta variable exista en Render
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ ERROR: Falta DEEPSEEK_API_KEY.", file=sys.stderr)
-        return None
-    
-    # DeepSeek usa la estructura compatible con OpenAI
-    return OpenAI(
-        api_key=api_key, 
-        base_url="https://api.deepseek.com"
-    )
-
-def generar_respuesta_deepseek(system_prompt, user_prompt):
-    """
-    Función genérica para consultar a DeepSeek-V3.
-    """
-    client = obtener_cliente()
-    if not client:
-        return "Error de configuración: Falta API Key de DeepSeek."
-
+        print("❌ ERROR: Falta GEMINI_API_KEY.", file=sys.stderr)
+        return False
     try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",  # Este es el modelo V3 (rápido y potente)
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            stream=False,
-            temperature=0.7 # Creatividad balanceada
-        )
-        return response.choices[0].message.content
+        genai.configure(api_key=api_key)
+        return True
     except Exception as e:
-        print(f"❌ Error DeepSeek: {e}", file=sys.stderr)
-        return "El sistema de inteligencia está temporalmente fuera de servicio."
+        print(f"❌ Error Config: {e}", file=sys.stderr)
+        return False
 
-# --- FUNCIONES ESPECÍFICAS PARA TUS MÓDULOS ---
+def generar_respuesta(prompt):
+    """
+    Usa Gemini 1.5 Flash (Gratis y Rápido)
+    """
+    try:
+        # Este modelo es el equilibrio perfecto: Gratis y sin límites absurdos
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        error_msg = str(e)
+        print(f"❌ Error Gemini: {error_msg}", file=sys.stderr)
+        
+        if "429" in error_msg:
+            return "⚠️ El sistema está saturado. Intenta en 1 minuto."
+        return "El servicio de inteligencia no está disponible."
+
+# --- FUNCIONES DEL SISTEMA ---
 
 def consultar_chat_general(mensaje_usuario, contexto_datos=""):
-    system = f"""
-    Eres el Asistente IA de SIDPOL (Sistema de Inteligencia Policial).
-    Tu misión es asistir a oficiales con respuestas breves, tácticas y profesionales.
+    if not configurar_gemini(): return "Error de conexión IA."
     
-    DATOS ACTUALES DEL SISTEMA:
-    {contexto_datos}
+    prompt = f"""
+    Eres el Asistente IA de SIDPOL.
+    Contexto del Sistema: {contexto_datos}
+    Usuario: "{mensaje_usuario}"
+    Responde breve y profesionalmente.
     """
-    return generar_respuesta_deepseek(system, mensaje_usuario)
+    return generar_respuesta(prompt)
 
 def consultar_estratega_ia(total, contexto, riesgo):
-    system = "Actúa como un Comandante Estratégico de la Policía (SIDPOL). Sé directo y autoritario."
-    prompt = f"""
-    Analiza esta situación para el 2026:
-    - Proyección Total: {total} delitos.
-    - Tendencia Reciente: {contexto}.
-    - Foco de Riesgo: {riesgo}.
-    
-    Genera:
-    1. Un diagnóstico de una frase.
-    2. Tres acciones tácticas operativas (con viñetas).
-    """
-    return generar_respuesta_deepseek(system, prompt)
+    if not configurar_gemini(): return "Error Config."
+    prompt = f"Comandante SIDPOL. Proyección 2026: {total}. Tendencia: {contexto}. Riesgo: {riesgo}. Dame diagnóstico y acciones."
+    return generar_respuesta(prompt)
 
 def analizar_riesgo_ia(pred, mod, dpto, trim, anio):
-    system = "Eres un Analista de Inteligencia Criminal experto en prevención del delito."
-    prompt = f"""
-    ALERTA DETECTADA:
-    - Modalidad: {mod}
-    - Zona: {dpto}
-    - Periodo: {trim}-{anio}
-    - Proyección Matemática: {pred} incidentes.
-    
-    Dame UNA recomendación operativa urgente y específica para mitigar este riesgo.
-    """
-    return generar_respuesta_deepseek(system, prompt)
+    if not configurar_gemini(): return "Error Config."
+    prompt = f"Analista. Alerta: {mod} en {dpto}, {trim}-{anio}. Proyección: {pred}. Recomendación táctica."
+    return generar_respuesta(prompt)
