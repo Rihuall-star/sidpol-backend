@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 from ml_riesgo import entrenar_modelo_riesgo
 import os
-from ml_utils import predecir_total_2026, predecir_2026_por_modalidad
+from ml_utils import predecir_total_2026
 from mongo_queries import total_denuncias, ranking_departamentos, top_modalidades, modalidad_mas_frecuente, tendencia_modalidad, comparar_dos_anios
 from ml_cluster import clusterizar_departamentos
 import re
