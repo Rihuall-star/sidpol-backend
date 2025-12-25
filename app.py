@@ -490,6 +490,7 @@ def prediccion_2026():
 # ============================================================
 from flask import jsonify, request
 # --- RUTA 1: CHATBOT FLOTANTE ---
+# --- RUTA CHATBOT CON LOS CAMPOS CORRECTOS (ANIO y cantidad) ---
 @app.route('/chat-ia', methods=['POST'])
 @login_required
 def chat_ia():
@@ -499,39 +500,72 @@ def chat_ia():
     try:
         col = db['denuncias']
         
-        # 1. OBTENER DATOS HISTÓRICOS REALES (Agrupados por Año)
-        # Esto hace que MongoDB sume el total de delitos por cada año
+        # ---------------------------------------------------------
+        # PASO 1: AGREGACIÓN DE DATOS (HISTÓRICO)
+        # ---------------------------------------------------------
+        # CORRECCIÓN BASADA EN TU IMAGEN:
+        # 1. Agrupamos por "$ANIO" (Mayúscula, como en tu BD)
+        # 2. Sumamos "$cantidad" (Así se llama tu campo de conteo)
         pipeline = [
-            {"$group": {"_id": "$anio", "total": {"$sum": "$total"}}},
-            {"$sort": {"_id": 1}} # Ordenar del más antiguo al más nuevo
+            {
+                "$group": {
+                    "_id": "$ANIO",  
+                    "total_delitos": {"$sum": "$cantidad"} 
+                }
+            },
+            {"$sort": {"_id": 1}} # Ordenar por año (2018, 2019...)
         ]
-        datos_historicos = list(col.aggregate(pipeline))
         
-        # Convertimos los datos a texto para que la IA los entienda
-        # Ejemplo: "2023: 50,000 delitos. 2024: 60,000 delitos."
-        texto_historico = ""
-        for d in datos_historicos:
-            texto_historico += f"- Año {d['_id']}: {d['total']:,} denuncias.\n"
+        datos_raw = list(col.aggregate(pipeline))
+        print(f"🔍 DEBUG - Datos Encontrados: {datos_raw}")
 
-        # 2. OBTENER PROYECCIÓN FUTURA (Lo que ya tenías)
-        total_2026, _, _, _, _ = predecir_total_2026(col)
+        # Construimos el texto para la IA
+        texto_historico = "HISTORIAL DE CRIMINALIDAD (Datos Reales SIDPOL):\n"
+        datos_validos = False
         
-        # 3. CONSTRUIR EL CONTEXTO COMPLETO
+        for d in datos_raw:
+            anio_dato = d.get('_id')
+            total_dato = d.get('total_delitos', 0)
+            
+            # Validamos que el año sea un número real (ej: 2018)
+            if anio_dato is not None and str(anio_dato).isdigit():
+                texto_historico += f"- Año {anio_dato}: {total_dato:,} denuncias.\n"
+                datos_validos = True
+        
+        if not datos_validos:
+            texto_historico += "(No se encontraron datos históricos legibles).\n"
+
+        # ---------------------------------------------------------
+        # PASO 2: PROYECCIÓN FUTURA (PREDICCIÓN 2026)
+        # ---------------------------------------------------------
+        try:
+            total_2026, _, _, _, _ = predecir_total_2026(col)
+        except:
+            total_2026 = "Calculando..."
+
+        # ---------------------------------------------------------
+        # PASO 3: CONTEXTO FINAL PARA GEMINI
+        # ---------------------------------------------------------
         contexto_full = f"""
-        DATOS REALES DE LA BASE DE DATOS (HISTÓRICO):
+        ERES: Analista de Inteligencia Criminal (SIDPOL).
+        
         {texto_historico}
         
-        PROYECCIÓN A FUTURO (PREDICCIÓN IA):
-        - Año 2026 (Estimado): {total_2026:,} incidentes.
+        PROYECCIÓN OFICIAL IA (2026):
+        - Se estiman: {total_2026} incidentes futuros.
+        
+        INSTRUCCIÓN:
+        Responde basándote estrictamente en estos números. 
+        Si preguntan por 2018, usa el dato de 2018. Si preguntan futuro, usa 2026.
         """
         
-        # 4. ENVIAR A GEMINI
+        # Llamada a la IA
         respuesta = consultar_chat_general(mensaje, contexto_datos=contexto_full)
         return jsonify({'respuesta': respuesta})
 
     except Exception as e:
-        print(f"Error Chat: {e}")
-        return jsonify({'respuesta': "Error consultando la base de datos."})
+        print(f"❌ Error CRÍTICO en Chat: {e}")
+        return jsonify({'respuesta': "Error interno procesando datos."})
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
 # ============================================================
