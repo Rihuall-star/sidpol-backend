@@ -17,7 +17,7 @@ from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
 from ml_llm import  consultar_chat_general
 
 from flask import (
-    Flask, render_template, request, redirect,
+    Flask, render_template, request, redirect, jsonify,
     url_for, session, flash
 )
 from functools import wraps
@@ -487,23 +487,33 @@ def prediccion_2026():
 #  CHAT IA: Conversar con Gemini + Dataset real
 # ============================================================
 from flask import jsonify, request
-@app.route('/chat-ia', methods=['POST'])
+@app.route('/chat-ia', methods=['GET', 'POST'])
 @login_required
 def chat_ia():
-    mensaje_usuario = request.form.get('mensaje')
-    if not mensaje_usuario: return jsonify({'respuesta': "No entendí."})
+    # 1. Si intentan entrar por navegador (GET), los mandamos al inicio
+    # Esto soluciona el error "Method Not Allowed" de tu imagen
+    if request.method == 'GET':
+        return redirect(url_for('index'))
 
-    # Obtenemos dato real para darle contexto
-    col = db['denuncias']
-    total_2026, _, _, _, _ = predecir_total_2026(col)
-    
-    # Contexto real
-    contexto = f"El total proyectado para 2026 es {total_2026:,} casos."
-    
-    # Llamada real a Gemini
-    respuesta = consultar_chat_general(mensaje_usuario, contexto_datos=contexto)
-    
-    return jsonify({'respuesta': respuesta})
+    # 2. Si es el Chatbot (POST)
+    mensaje_usuario = request.form.get('mensaje')
+    if not mensaje_usuario:
+        return jsonify({'respuesta': "No entendí tu mensaje."})
+
+    try:
+        # Inyectamos datos reales para que sea inteligente
+        col = db['denuncias']
+        total_2026, _, _, _, _ = predecir_total_2026(col)
+        contexto = f"El total de incidentes proyectados para 2026 es de {total_2026:,}."
+        
+        # Llamada a la IA
+        respuesta_ia = consultar_chat_general(mensaje_usuario, contexto_datos=contexto)
+        
+        return jsonify({'respuesta': respuesta_ia})
+        
+    except Exception as e:
+        print(f"Error en ruta chat-ia: {e}")
+        return jsonify({'respuesta': "Error interno del servidor."})
 
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
