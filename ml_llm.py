@@ -1,58 +1,78 @@
-import google.generativeai as genai
 import os
 import sys
+from openai import OpenAI
 
-def configurar_gemini():
-    api_key = os.getenv("GEMINI_API_KEY")
+# Configuración del Cliente DeepSeek
+def obtener_cliente():
+    api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
-        print("❌ ERROR: Falta GEMINI_API_KEY.", file=sys.stderr)
-        return False
-    try:
-        genai.configure(api_key=api_key)
-        return True
-    except Exception as e:
-        print(f"❌ Error Config: {e}", file=sys.stderr)
-        return False
+        print("❌ ERROR: Falta DEEPSEEK_API_KEY.", file=sys.stderr)
+        return None
+    
+    # DeepSeek usa la estructura compatible con OpenAI
+    return OpenAI(
+        api_key=api_key, 
+        base_url="https://api.deepseek.com"
+    )
 
-def obtener_modelo():
-    # USAMOS LA VERSIÓN SOLICITADA
-    return genai.GenerativeModel('gemini-2.5-flash')
+def generar_respuesta_deepseek(system_prompt, user_prompt):
+    """
+    Función genérica para consultar a DeepSeek-V3.
+    """
+    client = obtener_cliente()
+    if not client:
+        return "Error de configuración: Falta API Key de DeepSeek."
+
+    try:
+        response = client.chat.completions.create(
+            model="deepseek-chat",  # Este es el modelo V3 (rápido y potente)
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            stream=False,
+            temperature=0.7 # Creatividad balanceada
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"❌ Error DeepSeek: {e}", file=sys.stderr)
+        return "El sistema de inteligencia está temporalmente fuera de servicio."
+
+# --- FUNCIONES ESPECÍFICAS PARA TUS MÓDULOS ---
 
 def consultar_chat_general(mensaje_usuario, contexto_datos=""):
-    """ Cerebro del Chatbot Flotante """
-    if not configurar_gemini(): return "Error de conexión con la IA."
-
-    prompt = f"""
-    Eres el Asistente IA de SIDPOL.
+    system = f"""
+    Eres el Asistente IA de SIDPOL (Sistema de Inteligencia Policial).
+    Tu misión es asistir a oficiales con respuestas breves, tácticas y profesionales.
     
-    DATOS DEL SISTEMA:
+    DATOS ACTUALES DEL SISTEMA:
     {contexto_datos}
-    
-    PREGUNTA: "{mensaje_usuario}"
-    
-    Responde brevemente como un oficial de inteligencia.
     """
-    try:
-        model = obtener_modelo()
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        print(f"❌ Error Chat: {e}", file=sys.stderr)
-        return "Servicio de inteligencia temporalmente no disponible."
+    return generar_respuesta_deepseek(system, mensaje_usuario)
 
-# Funciones auxiliares para los otros módulos
 def consultar_estratega_ia(total, contexto, riesgo):
-    if not configurar_gemini(): return "Error Config."
-    try:
-        model = obtener_modelo()
-        prompt = f"Comandante SIDPOL. Proyección 2026: {total}. Tendencia: {contexto}. Riesgo: {riesgo}. Dame diagnóstico y acciones."
-        return model.generate_content(prompt).text
-    except: return "Sin servicio."
+    system = "Actúa como un Comandante Estratégico de la Policía (SIDPOL). Sé directo y autoritario."
+    prompt = f"""
+    Analiza esta situación para el 2026:
+    - Proyección Total: {total} delitos.
+    - Tendencia Reciente: {contexto}.
+    - Foco de Riesgo: {riesgo}.
+    
+    Genera:
+    1. Un diagnóstico de una frase.
+    2. Tres acciones tácticas operativas (con viñetas).
+    """
+    return generar_respuesta_deepseek(system, prompt)
 
 def analizar_riesgo_ia(pred, mod, dpto, trim, anio):
-    if not configurar_gemini(): return "Error Config."
-    try:
-        model = obtener_modelo()
-        prompt = f"Analista. Alerta: {mod} en {dpto}, {trim}-{anio}. Proyección: {pred}. Dame recomendación táctica."
-        return model.generate_content(prompt).text
-    except: return "Sin servicio."
+    system = "Eres un Analista de Inteligencia Criminal experto en prevención del delito."
+    prompt = f"""
+    ALERTA DETECTADA:
+    - Modalidad: {mod}
+    - Zona: {dpto}
+    - Periodo: {trim}-{anio}
+    - Proyección Matemática: {pred} incidentes.
+    
+    Dame UNA recomendación operativa urgente y específica para mitigar este riesgo.
+    """
+    return generar_respuesta_deepseek(system, prompt)
