@@ -576,7 +576,7 @@ def cluster_departamentos():
 # ============================================================
 
 # --- EN app.py ---
-# Asegúrate de tener los imports correctos al inicio:
+# Asegúrate de importar arriba:
 from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
 
 @app.route('/riesgo-modalidad', methods=['GET', 'POST'])
@@ -591,7 +591,6 @@ def riesgo_modalidad():
     dpto_sim = "LIMA METROPOLITANA"
     resultado_sim = 0
     
-    # Entrenar modelo
     modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad_objetivo=modalidad)
     
     grafico_labels = []
@@ -599,28 +598,25 @@ def riesgo_modalidad():
     departamentos_list = []
 
     if modelo and not df_hist.empty:
-        # Datos para el gráfico
-        df_nacional = df_hist.groupby('periodo')['total'].sum().reset_index()
+        # Agrupamos nacionalmente para el gráfico de línea
+        df_nacional = df_hist.groupby(['anio', 'trimestre_num', 'periodo'])['total'].sum().reset_index()
+        df_nacional = df_nacional.sort_values(by=['anio', 'trimestre_num'])
+        
         grafico_labels = df_nacional['periodo'].tolist()
         grafico_data = df_nacional['total'].tolist()
         
-        # Lista de departamentos
         departamentos_list = sorted(df_hist['departamento'].unique().tolist())
 
-        # Si el usuario mandó el formulario (POST)
         if request.method == 'POST':
             try:
                 anio_sim = int(request.form.get('anio', 2025))
                 trim_sim = request.form.get('trimestre', 'T1')
                 dpto_sim = request.form.get('departamento', dpto_sim)
-                
-                # Predecir
                 resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
-            except Exception as e:
-                print(f"Error en formulario: {e}")
+            except:
+                pass
 
-    # --- CORRECCIÓN AQUÍ ---
-    # Creamos el objeto 'entrada' que el HTML está pidiendo
+    # Objeto entrada para evitar el error Jinja2
     entrada_datos = {
         "anio": anio_sim,
         "trimestre": trim_sim,
@@ -630,10 +626,9 @@ def riesgo_modalidad():
     return render_template('riesgo_modalidad.html',
                            modalidad=modalidad,
                            labels=grafico_labels,
-                           data=grafico_data,
+                           valores=grafico_data,    # <--- AQUÍ ESTABA EL ERROR (antes era data)
                            departamentos=departamentos_list,
-                           # Pasamos el objeto 'entrada' para que Jinja2 no de error
-                           entrada=entrada_datos, 
+                           entrada=entrada_datos,   # <--- NECESARIO PARA EL TITULO
                            resultado=resultado_sim)
 
 # ============================================================
