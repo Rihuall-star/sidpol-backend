@@ -140,4 +140,11 @@ websocket-client==1.9.0
 Werkzeug==3.1.4
 widgetsnbextension==4.0.15
 openai>=1.0.0
-
+flask
+flask-login
+pymongo
+pandas
+scikit-learn
+python-dotenv
+gunicorn
+google-generativeai>=0.8.3
