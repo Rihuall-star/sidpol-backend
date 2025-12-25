@@ -4,9 +4,10 @@ from sklearn.linear_model import LinearRegression
 
 def preparar_mensual(col, modalidad=None):
     """
-    Función base para extraer datos reales sumando la columna 'cantidad'.
+    Función base: Extrae datos reales sumando la columna 'cantidad'.
+    Soporta nombres de campos mixtos (ANIO/anio, MES/mes) por seguridad.
     """
-    # 1. Filtro
+    # 1. Filtro de modalidad (si se especifica)
     match_filter = {}
     if modalidad:
         match_filter["$or"] = [
@@ -14,7 +15,8 @@ def preparar_mensual(col, modalidad=None):
             {"modalidad": modalidad}
         ]
 
-    # 2. Pipeline (Suma de volúmenes reales: 'cantidad')
+    # 2. Pipeline de Agregación
+    # Intentamos primero con mayúsculas (ANIO, MES) y sumamos 'cantidad' (minúscula)
     pipeline = [
         { "$match": match_filter },
         {
@@ -28,13 +30,21 @@ def preparar_mensual(col, modalidad=None):
 
     resultados = list(col.aggregate(pipeline))
     
-    # 3. Limpieza y validación
+    # Fallback: Si no trajo nada, probamos agrupar por minúsculas (anio, mes)
+    if not resultados:
+        pipeline[1]["$group"]["_id"] = { "anio": "$anio", "mes": "$mes" }
+        pipeline[1]["$group"]["total"] = { "$sum": "$cantidad" }
+        resultados = list(col.aggregate(pipeline))
+
+    # 3. Limpieza y estructuración en lista
     datos = []
     for d in resultados:
         id_doc = d.get("_id", {})
         try:
             val_anio = int(id_doc.get("anio") or 0)
             val_mes = int(id_doc.get("mes") or 0)
+            
+            # Filtramos datos incoherentes (ej: año 1900 o mes 13)
             if val_anio > 2000 and 1 <= val_mes <= 12:
                 datos.append({
                     "anio": val_anio,
@@ -48,15 +58,16 @@ def preparar_mensual(col, modalidad=None):
 
 def predecir_total_2026(col):
     """
-    USADO POR: Ruta /prediccion-2026 (El Gráfico)
-    Retorna: total, etiquetas, valores_predichos, historico_valores, historico_anios
+    USADO POR: Ruta /prediccion-2026 (El Gráfico de Tendencias)
+    Retorna 5 valores: total, etiquetas, predicciones, historico_valores, historico_anios
     """
     df = preparar_mensual(col)
     
+    # Si hay muy pocos datos, devolvemos vacíos para no romper la web
     if df.empty or len(df) < 12:
         return 0, [], [], [], []
 
-    # Crear índice temporal
+    # Crear índice temporal continuo para la regresión
     df['time_index'] = df['anio'] + (df['mes'] - 1) / 12.0
     
     X = df[['time_index']]
@@ -65,50 +76,16 @@ def predecir_total_2026(col):
     model = LinearRegression()
     model.fit(X, y)
     
-    # Proyectar 2026
+    # Generar proyección para 2026 (12 meses)
     meses_txt = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-    futuro_indices = []
-    etiquetas = []
+    futuro = np.array([2026 + (m-1)/12.0 for m in range(1, 13)]).reshape(-1, 1)
     
-    for m in range(1, 13):
-        futuro_indices.append(2026 + (m-1)/12.0)
-        etiquetas.append(meses_txt[m-1])
-        
-    X_futuro = pd.DataFrame(futuro_indices, columns=['time_index'])
+    # Creamos DataFrame para evitar warnings de sklearn
+    X_futuro = pd.DataFrame(futuro, columns=['time_index'])
     
     predicciones = model.predict(X_futuro)
-    predicciones = np.maximum(predicciones, 0)
+    predicciones = np.maximum(predicciones, 0) # Evitar negativos
     
     total_2026 = int(predicciones.sum())
     
-    # Retorna 5 valores (lo que espera app.py)
-    return total_2026, etiquetas, predicciones.tolist(), df['total'].tail(12).tolist(), df['anio'].tail(12).tolist()
-
-def obtener_contexto_ia(col):
-    """
-    USADO POR: Ruta /agente-estrategico (Gemini AI)
-    Retorna: total_2026, texto_historico_resumido
-    """
-    # Reutilizamos la lógica base para no repetir código
-    df = preparar_mensual(col)
-    
-    if df.empty or len(df) < 12:
-        return 0, "Datos insuficientes"
-
-    # Hacemos la predicción rápida para obtener el número total
-    df['time_index'] = df['anio'] + (df['mes'] - 1) / 12.0
-    model = LinearRegression()
-    model.fit(df[['time_index']], df['total'])
-    
-    futuro = np.array([2026 + (m-1)/12.0 for m in range(1, 13)]).reshape(-1, 1)
-    X_futuro = pd.DataFrame(futuro, columns=['time_index'])
-    pred = model.predict(X_futuro)
-    total_2026 = int(np.maximum(pred, 0).sum())
-    
-    # Generamos el texto de contexto (últimos 3 meses reales)
-    ultimos = df.tail(3)
-    texto_historico = ""
-    for _, row in ultimos.iterrows():
-        texto_historico += f"[{int(row['anio'])}-{int(row['mes'])}: {int(row['total'])} delitos] "
-        
-    return total_2026, texto_historico
+    #

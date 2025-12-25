@@ -49,7 +49,7 @@ def consultar_estratega_ia(total_proyectado, contexto_historico, top_riesgos_txt
         # 3. MODELO: Usamos la versión Flash por velocidad y eficiencia
         # Si tu versión específica es 'gemini-2.5', cámbialo aquí.
         # Por defecto usamos 'gemini-1.5-flash' que es el estándar actual rápido.
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        model = genai.GenerativeModel('gemini-2.5-flash') 
         
         response = model.generate_content(prompt)
         return response.text
