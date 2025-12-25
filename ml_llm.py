@@ -3,7 +3,6 @@ import os
 import sys
 
 def configurar_gemini():
-    # Asegúrate de que esta variable exista en Render
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("❌ ERROR: Falta GEMINI_API_KEY.", file=sys.stderr)
@@ -15,39 +14,47 @@ def configurar_gemini():
         print(f"❌ Error Config: {e}", file=sys.stderr)
         return False
 
+def obtener_modelo_2_5():
+    """
+    Intenta obtener el modelo Gemini 2.5 Flash solicitado.
+    """
+    # Usamos la cadena exacta que solicitaste.
+    # Si este falla por cuota (429), el sistema avisará.
+    return genai.GenerativeModel('gemini-2.5-flash')
+
 def generar_respuesta(prompt):
-    """
-    Usa Gemini 1.5 Flash (Gratis y Rápido)
-    """
     try:
-        # Este modelo es el equilibrio perfecto: Gratis y sin límites absurdos
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = obtener_modelo_2_5()
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ Error Gemini: {error_msg}", file=sys.stderr)
+        print(f"❌ Error Gemini 2.5: {error_msg}", file=sys.stderr)
         
-        if "429" in error_msg:
-            return "⚠️ El sistema está saturado. Intenta en 1 minuto."
-        return "El servicio de inteligencia no está disponible."
+        # Manejo de errores específicos
+        if "404" in error_msg:
+            return "⚠️ Error Técnico: La librería del servidor necesita actualizarse (Clear Cache)."
+        if "429" in error_msg or "quota" in error_msg.lower():
+            return "⚠️ Cuota Excedida: El modelo 2.5 ha alcanzado su límite diario gratuito."
+            
+        return "Servicio de inteligencia temporalmente no disponible."
 
 # --- FUNCIONES DEL SISTEMA ---
 
 def consultar_chat_general(mensaje_usuario, contexto_datos=""):
-    if not configurar_gemini(): return "Error de conexión IA."
+    if not configurar_gemini(): return "Error de conexión."
     
     prompt = f"""
     Eres el Asistente IA de SIDPOL.
-    Contexto del Sistema: {contexto_datos}
+    Contexto: {contexto_datos}
     Usuario: "{mensaje_usuario}"
-    Responde breve y profesionalmente.
+    Responde breve y con autoridad policial.
     """
     return generar_respuesta(prompt)
 
 def consultar_estratega_ia(total, contexto, riesgo):
     if not configurar_gemini(): return "Error Config."
-    prompt = f"Comandante SIDPOL. Proyección 2026: {total}. Tendencia: {contexto}. Riesgo: {riesgo}. Dame diagnóstico y acciones."
+    prompt = f"Comandante SIDPOL. Proyección: {total}. Tendencia: {contexto}. Riesgo: {riesgo}. Dame diagnóstico y acciones."
     return generar_respuesta(prompt)
 
 def analizar_riesgo_ia(pred, mod, dpto, trim, anio):
