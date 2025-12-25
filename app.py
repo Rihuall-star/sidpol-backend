@@ -887,6 +887,16 @@ def crear_usuario():
 # ============================================================
 # RUN
 # ============================================================
+@app.route('/espiar-datos')
+def espiar_datos():
+    try:
+        col = db['simulaciones_riesgo']
+        # Trae un documento cualquiera
+        dato = col.find_one()
+        return f"<h1>Lo que hay en la base de datos:</h1><p>{str(dato)}</p>"
+    except Exception as e:
+        return f"<h1>Error espiando:</h1><p>{str(e)}</p>"
+
 
 if __name__ == "__main__":
     app.run(debug=True)

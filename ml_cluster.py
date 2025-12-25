@@ -3,12 +3,14 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 def preparar_matriz_departamento(col):
+    # Traemos todo sin filtrar por año para ver qué encuentra
     pipeline = [
         {
             "$group": {
                 "_id": { 
                     "dpto": "$DPTO_HECHO_NEW", 
-                    "mod": "$P_MODALIDADES" 
+                    "mod": "$P_MODALIDADES",
+                    "anio": "$ANIO" 
                 },
                 "total": { "$sum": 1 }
             }
@@ -17,38 +19,66 @@ def preparar_matriz_departamento(col):
     
     resultados = list(col.aggregate(pipeline))
     datos = []
+    
     for d in resultados:
-        id_data = d.get("_id", {})
+        id_doc = d.get("_id", {})
+        # Usamos valores por defecto si no encuentra columnas
         datos.append({
-            "departamento": id_data.get("dpto") or "OTRO",
-            "modalidad": id_data.get("mod") or "OTRO",
-            "cantidad": d.get("total") or 0
+            "departamento": id_doc.get("dpto") or id_doc.get("DPTO_HECHO_NEW") or "DESCONOCIDO",
+            "modalidad": id_doc.get("mod") or id_doc.get("P_MODALIDADES") or "GENERAL",
+            "anio": id_doc.get("anio") or id_doc.get("ANIO") or 0,
+            "cantidad": d.get("total", 0)
         })
     return datos
 
 def clusterizar_departamentos(col, n_clusters=3):
     datos = preparar_matriz_departamento(col)
+    
     if not datos:
         return []
         
     df = pd.DataFrame(datos)
-    # Pivotar para tener modalidades como columnas y departamentos como filas
-    matrix = df.pivot_table(index='departamento', columns='modalidad', values='cantidad', fill_value=0)
     
-    # Escalar datos
+    # Agrupar por departamento
+    matrix = df.pivot_table(index='departamento', columns='modalidad', values='cantidad', aggfunc='sum', fill_value=0)
+    
+    if matrix.empty:
+        return []
+
+    # --- CORRECCIÓN DEL ERROR 500 ---
+    # Si tenemos menos filas (departamentos) que clusters solicitados,
+    # ajustamos el número de clusters al número de filas.
+    n_registros = len(matrix)
+    k_real = min(n_clusters, n_registros)
+    
+    # Si solo hay 1 registro, no podemos escalar ni clusterizar normal, lo devolvemos directo
+    if k_real < 2:
+        resultado_final = []
+        for dpto, row in matrix.iterrows():
+            resultado_final.append({
+                "departamento": dpto,
+                "cluster": 0,
+                "riesgo": "Datos insuficientes"
+            })
+        return resultado_final
+
+    # Escalar y K-Means normal
     scaler = StandardScaler()
     matrix_scaled = scaler.fit_transform(matrix)
     
-    # KMeans
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    kmeans = KMeans(n_clusters=k_real, random_state=42, n_init=10)
     matrix['cluster'] = kmeans.fit_predict(matrix_scaled)
     
-    # Formatear para el frontend
+    # Asignar riesgo
     resultado_final = []
     for dpto, row in matrix.iterrows():
+        c_id = int(row['cluster'])
+        # Lógica simple de riesgo para visualización
+        riesgo = "Alto" if c_id == 0 else "Medio" if c_id == 1 else "Bajo"
         resultado_final.append({
             "departamento": dpto,
-            "cluster": int(row['cluster']),
-            "riesgo": "Alto" if row['cluster'] == 0 else "Medio" if row['cluster'] == 1 else "Bajo"
+            "cluster": c_id,
+            "riesgo": riesgo
         })
+        
     return resultado_final
