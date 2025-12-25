@@ -471,8 +471,8 @@ def regiones():
 @app.route('/prediccion-2026')
 @login_required
 def prediccion_2026():
-    # CAMBIO CLAVE: Usamos 'denuncias' que tiene los millones de registros
-    col = db['denuncias'] 
+    # USAMOS LA COLECCIÓN GRANDE
+    col = db['denuncias']
     
     total, etiquetas, valores, historico, anios = predecir_total_2026(col)
     
@@ -805,11 +805,14 @@ def reporte_lima():
 @app.route('/agente-estrategico')
 @login_required
 def agente_estrategico():
-    # CAMBIO CLAVE: Usamos 'denuncias'
+    # USAMOS LA COLECCIÓN GRANDE
     col = db['denuncias']
+    
     total_2026, _, _, _, _ = predecir_total_2026(col)
     
-    mensaje = f"Se estima un total de {total_2026} incidentes para el 2026 basado en el histórico real."
+    # Formateamos el número con comas para que se vea bien (ej: 1,230,500)
+    total_fmt = "{:,}".format(total_2026)
+    mensaje = f"Basado en el análisis de millones de registros históricos, la IA proyecta {total_fmt} incidentes para el 2026."
     
     return render_template('agente_estrategico.html', total=total_2026, analisis=mensaje)
 
@@ -819,9 +822,11 @@ def agente_estrategico():
 @app.route('/agente-logistico')
 @login_required
 def agente_logistico():
-    # CAMBIO CLAVE: Usamos 'denuncias'
+    # USAMOS LA COLECCIÓN GRANDE
     col = db['denuncias']
+    
     datos_clusters = clusterizar_departamentos(col, n_clusters=3)
+    
     return render_template('agente_logistico.html', clusters=datos_clusters)
 
 # --- IMPORTANTE: Asegúrate de tener esto arriba del todo ---
