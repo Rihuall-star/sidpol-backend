@@ -582,54 +582,64 @@ from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
 @app.route('/riesgo-modalidad', methods=['GET', 'POST'])
 @login_required
 def riesgo_modalidad():
+    # 1. INICIALIZACIÓN DE SEGURIDAD (Para evitar errores 500)
     col = db['denuncias']
-    
-    # Valores por defecto
     modalidad = "Extorsión" 
     anio_sim = 2025
     trim_sim = "T1"
     dpto_sim = "LIMA METROPOLITANA"
-    resultado_sim = 0
     
+    # Variables que SIEMPRE deben existir (aunque estén vacías)
+    grafico_labels = []
+    grafico_data = []      # Esto es lo que el HTML llama 'valores'
+    departamentos_list = []
+    resultado_sim = None   # None significa "aún no calculado"
+    
+    # 2. ENTRENAMIENTO
     modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad_objetivo=modalidad)
     
-    grafico_labels = []
-    grafico_data = []
-    departamentos_list = []
-
-    if modelo and not df_hist.empty:
-        # Agrupamos nacionalmente para el gráfico de línea
-        df_nacional = df_hist.groupby(['anio', 'trimestre_num', 'periodo'])['total'].sum().reset_index()
+    if modelo is not None and not df_hist.empty:
+        # Preparar gráfico (Agrupado por periodo)
+        df_nacional = df_hist.groupby(['periodo', 'anio', 'trimestre_num'])['total'].sum().reset_index()
         df_nacional = df_nacional.sort_values(by=['anio', 'trimestre_num'])
         
         grafico_labels = df_nacional['periodo'].tolist()
         grafico_data = df_nacional['total'].tolist()
         
+        # Lista de departamentos para el select
         departamentos_list = sorted(df_hist['departamento'].unique().tolist())
 
+        # 3. PROCESAR FORMULARIO (Si se dio clic a Estimar)
         if request.method == 'POST':
             try:
+                # Obtenemos datos del formulario
                 anio_sim = int(request.form.get('anio', 2025))
                 trim_sim = request.form.get('trimestre', 'T1')
                 dpto_sim = request.form.get('departamento', dpto_sim)
-                resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
-            except:
-                pass
+                
+                # Ejecutamos la predicción
+                val_pred = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
+                resultado_sim = val_pred # Guardamos el resultado
+                
+            except Exception as e:
+                print(f"Error en simulación: {e}")
+                resultado_sim = 0 # En caso de error, devolvemos 0
 
-    # Objeto entrada para evitar el error Jinja2
+    # 4. PREPARAR OBJETO 'ENTRADA' (Para el título del resultado)
     entrada_datos = {
         "anio": anio_sim,
         "trimestre": trim_sim,
         "departamento": dpto_sim
     }
 
+    # 5. RENDERIZADO FINAL
     return render_template('riesgo_modalidad.html',
                            modalidad=modalidad,
                            labels=grafico_labels,
-                           valores=grafico_data,    # <--- AQUÍ ESTABA EL ERROR (antes era data)
+                           valores=grafico_data,    # <--- La variable crítica
                            departamentos=departamentos_list,
-                           entrada=entrada_datos,   # <--- NECESARIO PARA EL TITULO
-                           resultado=resultado_sim)
+                           entrada=entrada_datos,   # <--- La variable del título
+                           resultado=resultado_sim) # <--- El número predicho
 
 # ============================================================
 # Análisis Trimestral (Extorsión vs Homicidio)
