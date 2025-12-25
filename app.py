@@ -790,20 +790,44 @@ def reporte_lima():
 # ============================================================
 # Agente "Centinela" de Políticas Públicas
 # ============================================================
-# --- NUEVO AGENTE: ESTRATEGA DE SEGURIDAD ---
+# --- IMPORTACIONES ---
+# Agrega esto arriba junto a los otros imports
+from ml_llm import consultar_estratega_ia
+from ml_utils import obtener_contexto_ia, predecir_total_2026 # Asegúrate de que existan
+
+# ... (Resto de tu código) ...
+
 @app.route('/agente-estrategico')
 @login_required
 def agente_estrategico():
-    # USAMOS LA COLECCIÓN GRANDE
-    col = db['denuncias']
-    
-    total_2026, _, _, _, _ = predecir_total_2026(col)
-    
-    # Formateamos el número con comas para que se vea bien (ej: 1,230,500)
-    total_fmt = "{:,}".format(total_2026)
-    mensaje = f"Basado en el análisis de millones de registros históricos, la IA proyecta {total_fmt} incidentes para el 2026."
-    
-    return render_template('agente_estrategico.html', total=total_2026, analisis=mensaje)
+    try:
+        # 1. Conexión a BIG DATA (Colección 'denuncias')
+        col = db['denuncias']
+        
+        # 2. Obtener Datos Numéricos (Python)
+        # Reutilizamos predecir_total_2026 para el número grande o usamos obtener_contexto_ia
+        total_2026, texto_historico = obtener_contexto_ia(col)
+        
+        # 3. Invocar al Agente Cognitivo (Gemini)
+        # Simulamos un dato de riesgo alto para el prompt (o lo calculas con ml_cluster)
+        top_riesgo = "Extorsión en La Libertad y Lima Norte (Tendencia al alza)"
+        
+        # LLAMADA A LA IA
+        analisis_ia = consultar_estratega_ia(total_2026, texto_historico, top_riesgo)
+        
+        # 4. Formato visual
+        total_fmt = "{:,}".format(total_2026)
+        
+        return render_template('agente_estrategico.html', 
+                               total=total_fmt, 
+                               analisis=analisis_ia)
+
+    except Exception as e:
+        print(f"Error en Agente Estratega: {e}")
+        # Fallback elegante si algo falla
+        return render_template('agente_estrategico.html', 
+                               total="Calculando...", 
+                               analisis="El sistema de IA está reiniciando sus módulos neuronales. Intente nuevamente.")
 
 # ============================================================
 # RUN Agente de Asignación Táctica
