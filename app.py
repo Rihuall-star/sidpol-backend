@@ -487,27 +487,31 @@ def prediccion_2026():
 #  CHAT IA: Conversar con Gemini + Dataset real
 # ============================================================
 from flask import jsonify, request
-@app.route('/chat-ia', methods=['POST'])
+@app.route('/chat-ia', methods=['GET', 'POST']) # Aceptamos ambos para evitar error 405
 @login_required
 def chat_ia():
+    # 1. Si entras por el navegador por error -> Redirigir al Inicio
+    if request.method == 'GET':
+        return redirect(url_for('index'))
+
+    # 2. Si es el Chatbot (POST) -> Procesar con IA
     mensaje = request.form.get('mensaje')
     if not mensaje:
-        return jsonify({'respuesta': "No se recibió mensaje."})
-
+        return jsonify({'respuesta': "No entendí."})
+    
     try:
-        # 1. Obtenemos dato real de la DB para contexto
+        # Inyectamos contexto real
         col = db['denuncias']
         total_2026, _, _, _, _ = predecir_total_2026(col)
-        contexto = f"El total proyectado de delitos para 2026 es {total_2026:,}."
-
-        # 2. Consultamos al Cerebro (Gemini 2.5)
+        contexto = f"Proyección 2026: {total_2026:,} incidentes."
+        
+        # Consultamos a Gemini 2.5
         respuesta = consultar_chat_general(mensaje, contexto_datos=contexto)
-
+        
         return jsonify({'respuesta': respuesta})
     except Exception as e:
-        print(f"Error en chat-ia: {e}")
-        return jsonify({'respuesta': "Error interno en el servidor."})
-
+        print(f"Error Chat Route: {e}")
+        return jsonify({'respuesta': "Error interno."})
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
 # ============================================================
