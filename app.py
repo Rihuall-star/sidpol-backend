@@ -12,7 +12,7 @@ from sklearn.cluster import KMeans
 import numpy as np
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from ml_llm import consultar_estratega_ia, analizar_riesgo_ia
+from ml_llm import consultar_estratega_ia, analizar_riesgo_ia, consultar_chat_general
 from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
 from ml_llm import  consultar_chat_general
 
@@ -487,28 +487,24 @@ def prediccion_2026():
 #  CHAT IA: Conversar con Gemini + Dataset real
 # ============================================================
 
-from flask import jsonify, request
-
-@app.route('/chat-ia', methods=['GET', 'POST'])
+@app.route('/chat-ia', methods=['POST'])
 @login_required
 def chat_ia():
-    if request.method == 'POST':
-        mensaje_usuario = request.form.get('mensaje')
-        
-        # --- AQUÍ ESTABA EL "PLACEHOLDER", LO CAMBIAMOS POR LA IA REAL ---
-        
-        # Antes (lo que tienes ahora):
-        # respuesta_ia = "Recibido: " + mensaje_usuario + "..."
-        
-        # AHORA (La conexión real):
-        if mensaje_usuario:
-            respuesta_ia = consultar_chat_general(mensaje_usuario)
-        else:
-            respuesta_ia = "No entendí tu mensaje."
-            
-        return jsonify({'respuesta': respuesta_ia})
-        
-    return render_template('layout.html') # O retorna un 200 simple
+    mensaje_usuario = request.form.get('mensaje')
+    
+    if not mensaje_usuario:
+        return jsonify({'respuesta': "No entendí tu mensaje."})
+
+    # 1. Obtenemos un dato clave para que el chat sea inteligente
+    col = db['denuncias']
+    total_2026, _, _, _, _ = predecir_total_2026(col)
+    
+    contexto_rapido = f"La proyección total de delitos para 2026 es de {total_2026:,} incidentes."
+
+    # 2. Llamamos a la IA REAL (Ya no el placeholder)
+    respuesta_ia = consultar_chat_general(mensaje_usuario, contexto_datos=contexto_rapido)
+    
+    return jsonify({'respuesta': respuesta_ia})
 
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
