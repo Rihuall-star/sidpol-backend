@@ -5,9 +5,8 @@ from sklearn.preprocessing import LabelEncoder
 
 def preparar_dataset_riesgo(col, modalidad_objetivo):
     """
-    Prepara datos históricos agrupados por Trimestre, usando la columna 'cantidad'.
+    Prepara los datos para el modelo, sumando la columna 'cantidad'.
     """
-    # 1. Filtro (Modalidad)
     match_filter = {
         "$or": [
             {"P_MODALIDADES": modalidad_objetivo},
@@ -15,7 +14,7 @@ def preparar_dataset_riesgo(col, modalidad_objetivo):
         ]
     }
 
-    # 2. Agregación (Suma de 'cantidad')
+    # Pipeline: Agrupar por Trimestre y Sumar Cantidad Real
     pipeline = [
         { "$match": match_filter },
         {
@@ -25,14 +24,14 @@ def preparar_dataset_riesgo(col, modalidad_objetivo):
                     "trimestre": "$trimestre",
                     "dpto": "$DPTO_HECHO_NEW" 
                 },
-                "total": { "$sum": "$cantidad" } # Suma volumen real
+                "total": { "$sum": "$cantidad" } 
             }
         }
     ]
 
     resultados = list(col.aggregate(pipeline))
     
-    # Plan B (Minúsculas)
+    # Fallback minúsculas
     if not resultados:
         pipeline[1]["$group"]["_id"] = { "anio": "$anio", "trimestre": "$trimestre", "dpto": "$departamento" }
         pipeline[1]["$group"]["total"] = { "$sum": "$cantidad" }
@@ -46,7 +45,6 @@ def preparar_dataset_riesgo(col, modalidad_objetivo):
         try:
             val_anio = int(id_doc.get("anio") or 0)
             val_trim = id_doc.get("trimestre")
-            # Normalizamos el nombre del departamento (Mayúsculas y sin espacios extra)
             val_dpto = str(id_doc.get("dpto") or "DESCONOCIDO").upper().strip()
             val_total = d.get("total", 0)
             
@@ -58,29 +56,24 @@ def preparar_dataset_riesgo(col, modalidad_objetivo):
                     "departamento": val_dpto,
                     "total": val_total
                 })
-        except:
-            continue
+        except: continue
 
-    if not datos:
-        return pd.DataFrame()
+    if not datos: return pd.DataFrame()
 
     df = pd.DataFrame(datos)
-    # Etiqueta para gráfico
     df['periodo'] = df['anio'].astype(str) + "-" + df['trimestre']
-    
+    df = df.sort_values(by=['anio', 'trimestre_num'])
     return df
 
 def entrenar_modelo_riesgo(col, modalidad_objetivo):
+    """ Entrena el modelo Random Forest """
     df = preparar_dataset_riesgo(col, modalidad_objetivo)
     
-    if df.empty:
-        return None, pd.DataFrame(), None
+    if df.empty: return None, pd.DataFrame(), None
 
-    # Codificar Departamentos
     le_dpto = LabelEncoder()
     df['dpto_code'] = le_dpto.fit_transform(df['departamento'])
     
-    # Entrenar Random Forest
     X = df[['anio', 'trimestre_num', 'dpto_code']]
     y = df['total']
     
@@ -89,30 +82,28 @@ def entrenar_modelo_riesgo(col, modalidad_objetivo):
     
     return modelo, df, le_dpto
 
+# --- ESTA ES LA FUNCIÓN QUE FALTABA O DABA ERROR ---
 def predecir_valor_especifico(modelo, le_dpto, anio, trimestre_str, departamento):
+    """
+    Realiza la predicción puntual para el simulador.
+    """
     try:
-        # Normalizar inputs
         anio = int(anio)
-        departamento = str(departamento).upper().strip()
-        
         trim_map = {"T1": 1, "T2": 2, "T3": 3, "T4": 4}
         trim_num = trim_map.get(trimestre_str, 1)
+        departamento = str(departamento).upper().strip()
         
-        # Validar si el departamento existe en el entrenamiento
+        # Verificar si el departamento es conocido por el modelo
         if departamento in le_dpto.classes_:
             dpto_code = le_dpto.transform([departamento])[0]
         else:
-            # Si es un dpto nuevo, no podemos predecir con precisión -> devolvemos 0
-            print(f"Departamento '{departamento}' no encontrado en datos históricos.")
-            return 0 
+            return 0 # Departamento nuevo/desconocido
 
-        # Crear DataFrame con nombres de columnas (importante para evitar warnings)
-        X_pred = pd.DataFrame([[anio, trim_num, dpto_code]], 
-                              columns=['anio', 'trimestre_num', 'dpto_code'])
+        # Crear DataFrame con nombres de columnas para evitar warnings
+        X_pred = pd.DataFrame([[anio, trim_num, dpto_code]], columns=['anio', 'trimestre_num', 'dpto_code'])
         
         prediccion = modelo.predict(X_pred)[0]
-        
         return int(prediccion)
     except Exception as e:
-        print(f"Error en predicción puntual: {e}")
+        print(f"Error en predicción interna: {e}")
         return 0

@@ -3,7 +3,6 @@
 # ============================================================
 import pandas as pd
 from datetime import datetime
-from ml_riesgo import entrenar_modelo_riesgo
 import os
 from ml_utils import predecir_total_2026
 from mongo_queries import total_denuncias, ranking_departamentos, top_modalidades, modalidad_mas_frecuente, tendencia_modalidad, comparar_dos_anios
@@ -13,6 +12,8 @@ from sklearn.cluster import KMeans
 import numpy as np
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from ml_llm import consultar_estratega_ia, analizar_riesgo_ia
+from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
 
 from flask import (
     Flask, render_template, request, redirect,
@@ -577,7 +578,7 @@ def cluster_departamentos():
 
 # --- EN app.py ---
 # Importamos la nueva función
-from ml_llm import consultar_estratega_ia, analizar_riesgo_ia 
+
 
 @app.route('/riesgo-modalidad', methods=['GET', 'POST'])
 @login_required
