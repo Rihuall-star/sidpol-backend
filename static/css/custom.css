@@ -41,3 +41,26 @@ h1 {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+#chatbot-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+#chatbot-trigger {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #1cc88a; /* Verde SIDPOL */
+    border: none;
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+#chatbot-window {
+    display: none;
+    width: 300px;
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    border: none;
+}

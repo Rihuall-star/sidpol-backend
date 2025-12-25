@@ -151,5 +151,93 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
+<div id="chatbot-container">
+    <button id="chatbot-trigger" onclick="toggleChat()">
+        <i class="fas fa-comment-dots fa-lg"></i>
+    </button>
+
+    <div id="chatbot-window" class="card shadow-lg">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
+            <span><i class="fas fa-robot mr-2"></i>Asistente SIDPOL</span>
+            <button class="btn btn-sm text-white" onclick="toggleChat()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages" class="card-body bg-light" style="height: 350px; overflow-y: auto;">
+            <div class="p-2 bg-white rounded mb-2 shadow-sm border">
+                <small class="text-muted">Sistema</small>
+                <p class="mb-0 text-dark small">Hola. Soy el agente IA (Gemini 2.5). ¿En qué puedo apoyar?</p>
+            </div>
+        </div>
+        <div class="card-footer p-2">
+            <div class="input-group">
+                <input type="text" id="chat-input" class="form-control form-control-sm" placeholder="Escribe aquí..." onkeypress="handleEnter(event)">
+                <div class="input-group-append">
+                    <button class="btn btn-success btn-sm" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleChat() {
+        const w = document.getElementById('chatbot-window');
+        w.style.display = (w.style.display === 'none' || w.style.display === '') ? 'block' : 'none';
+    }
+    
+    function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if(!msg) return;
+
+        const chatBody = document.getElementById('chat-messages');
+        
+        // Mensaje Usuario
+        chatBody.innerHTML += `
+            <div class="d-flex justify-content-end mb-2">
+                <div class="p-2 bg-primary text-white rounded shadow-sm small" style="max-width: 80%;">
+                    ${msg}
+                </div>
+            </div>`;
+        
+        input.value = '';
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        // Loading
+        const loadId = 'loading-' + Date.now();
+        chatBody.innerHTML += `
+            <div id="${loadId}" class="d-flex justify-content-start mb-2">
+                <div class="p-2 bg-white border rounded shadow-sm small text-muted">
+                    <i class="fas fa-circle-notch fa-spin"></i> Procesando...
+                </div>
+            </div>`;
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        // Petición al Servidor
+        fetch('/chat-ia', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `mensaje=${encodeURIComponent(msg)}`
+        })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById(loadId).remove();
+            // Respuesta IA
+            const respuesta = data.respuesta || "Sin respuesta.";
+            chatBody.innerHTML += `
+                <div class="d-flex justify-content-start mb-2">
+                    <div class="p-2 bg-white border rounded shadow-sm small text-dark" style="max-width: 85%;">
+                        ${respuesta.replace(/\n/g, '<br>')}
+                    </div>
+                </div>`;
+            chatBody.scrollTop = chatBody.scrollHeight;
+        })
+        .catch(err => {
+            document.getElementById(loadId).remove();
+            console.error(err);
+        });
+    }
+</script>
 </body>
 </html>

@@ -487,33 +487,26 @@ def prediccion_2026():
 #  CHAT IA: Conversar con Gemini + Dataset real
 # ============================================================
 from flask import jsonify, request
-@app.route('/chat-ia', methods=['GET', 'POST'])
+@app.route('/chat-ia', methods=['POST'])
 @login_required
 def chat_ia():
-    # 1. Si intentan entrar por navegador (GET), los mandamos al inicio
-    # Esto soluciona el error "Method Not Allowed" de tu imagen
-    if request.method == 'GET':
-        return redirect(url_for('index'))
-
-    # 2. Si es el Chatbot (POST)
-    mensaje_usuario = request.form.get('mensaje')
-    if not mensaje_usuario:
-        return jsonify({'respuesta': "No entendí tu mensaje."})
+    mensaje = request.form.get('mensaje')
+    if not mensaje:
+        return jsonify({'respuesta': "No se recibió mensaje."})
 
     try:
-        # Inyectamos datos reales para que sea inteligente
+        # 1. Obtenemos dato real de la DB para contexto
         col = db['denuncias']
         total_2026, _, _, _, _ = predecir_total_2026(col)
-        contexto = f"El total de incidentes proyectados para 2026 es de {total_2026:,}."
-        
-        # Llamada a la IA
-        respuesta_ia = consultar_chat_general(mensaje_usuario, contexto_datos=contexto)
-        
-        return jsonify({'respuesta': respuesta_ia})
-        
+        contexto = f"El total proyectado de delitos para 2026 es {total_2026:,}."
+
+        # 2. Consultamos al Cerebro (Gemini 2.5)
+        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto)
+
+        return jsonify({'respuesta': respuesta})
     except Exception as e:
-        print(f"Error en ruta chat-ia: {e}")
-        return jsonify({'respuesta': "Error interno del servidor."})
+        print(f"Error en chat-ia: {e}")
+        return jsonify({'respuesta': "Error interno en el servidor."})
 
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)

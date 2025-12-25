@@ -5,56 +5,59 @@ import sys
 def configurar_gemini():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ ERROR: No se encontró GEMINI_API_KEY", file=sys.stderr)
+        print("❌ ERROR: No se encontró GEMINI_API_KEY.", file=sys.stderr)
         return False
-    genai.configure(api_key=api_key)
-    return True
+    try:
+        genai.configure(api_key=api_key)
+        return True
+    except Exception as e:
+        print(f"❌ Error al configurar Gemini: {e}", file=sys.stderr)
+        return False
 
-def obtener_modelo_seguro():
-    # Usamos 'gemini-pro' porque es el más estable y evita el error 404
-    return genai.GenerativeModel('gemini-pro')
+def obtener_modelo():
+    # USAMOS LA VERSIÓN QUE CONFIRMASTE QUE FUNCIONA 100%
+    return genai.GenerativeModel('gemini-2.5-flash')
 
 def consultar_chat_general(mensaje_usuario, contexto_datos=""):
     """
-    Cerebro del Chatbot Flotante
+    Función para el Chatbot Flotante.
     """
     if not configurar_gemini(): return "Error: API Key no configurada."
 
     prompt = f"""
     Eres el Asistente IA de SIDPOL (Sistema de Inteligencia Policial).
     
-    INFORMACIÓN CLAVE DEL SISTEMA:
+    INFORMACIÓN DEL SISTEMA (Contexto Real):
     {contexto_datos}
     
-    USUARIO: "{mensaje_usuario}"
+    PREGUNTA DEL OFICIAL: "{mensaje_usuario}"
     
-    Instrucciones:
-    - Responde de forma breve y profesional (estilo policial).
-    - Usa la información clave si es relevante para la pregunta.
-    - Si no sabes, sugiere ir al módulo 'Agente Estratega'.
+    INSTRUCCIONES:
+    - Responde de forma breve, útil y con tono de autoridad policial.
+    - Usa el contexto numérico si es relevante para la pregunta.
+    - Si no sabes, sugiere consultar los módulos especializados.
     """
     try:
-        model = obtener_modelo_seguro()
+        model = obtener_modelo()
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        print(f"❌ Error Gemini Chat: {e}", file=sys.stderr)
-        return "El sistema de IA está reiniciando servicios. Intente en unos segundos."
+        print(f"❌ Error Chat General: {e}", file=sys.stderr)
+        return "El sistema de comunicaciones IA está inestable. Reintente."
 
-def consultar_estratega_ia(total_proyectado, contexto, top_riesgo):
+# --- Funciones para los otros módulos (Riesgo y Estratega) ---
+def consultar_estratega_ia(total, contexto, riesgo):
     if not configurar_gemini(): return "Error Configuración."
-    prompt = f"Actúa como Comandante SIDPOL. Proyección 2026: {total_proyectado} delitos. Tendencia: {contexto}. Riesgo: {top_riesgo}. Dame 1 diagnóstico y 3 acciones tácticas."
+    prompt = f"Comandante SIDPOL. Proyección 2026: {total}. Tendencia: {contexto}. Foco: {riesgo}. Dame 1 diagnóstico y 3 acciones tácticas."
     try:
-        model = obtener_modelo_seguro()
-        response = model.generate_content(prompt)
-        return response.text
+        model = obtener_modelo()
+        return model.generate_content(prompt).text
     except: return "Servicio no disponible."
 
-def analizar_riesgo_ia(prediccion, modalidad, dpto, trim, anio):
+def analizar_riesgo_ia(pred, mod, dpto, trim, anio):
     if not configurar_gemini(): return "Error Configuración."
-    prompt = f"Analista de seguridad. Alerta: {modalidad} en {dpto}, {trim}-{anio}. Proyección: {prediccion}. Recomienda 1 medida operativa urgente."
+    prompt = f"Analista Seguridad. Alerta: {mod} en {dpto}, {trim}-{anio}. Proyección: {pred}. Dame 1 recomendación operativa urgente."
     try:
-        model = obtener_modelo_seguro()
-        response = model.generate_content(prompt)
-        return response.text
+        model = obtener_modelo()
+        return model.generate_content(prompt).text
     except: return "Análisis no disponible."
