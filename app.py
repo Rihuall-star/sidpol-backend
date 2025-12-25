@@ -576,70 +576,78 @@ def cluster_departamentos():
 # ============================================================
 
 # --- EN app.py ---
-# Asegúrate de importar arriba:
-from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
+# Importamos la nueva función
+from ml_llm import consultar_estratega_ia, analizar_riesgo_ia 
 
 @app.route('/riesgo-modalidad', methods=['GET', 'POST'])
 @login_required
 def riesgo_modalidad():
-    # 1. INICIALIZACIÓN DE SEGURIDAD (Para evitar errores 500)
     col = db['denuncias']
-    modalidad = "Extorsión" 
+    modalidad = "Extorsión" # Puedes hacerlo dinámico si quieres
+    
+    # Valores iniciales
     anio_sim = 2025
     trim_sim = "T1"
     dpto_sim = "LIMA METROPOLITANA"
+    resultado_sim = 0
+    analisis_ia_txt = None # Variable para el texto de la IA
     
-    # Variables que SIEMPRE deben existir (aunque estén vacías)
-    grafico_labels = []
-    grafico_data = []      # Esto es lo que el HTML llama 'valores'
-    departamentos_list = []
-    resultado_sim = None   # None significa "aún no calculado"
-    
-    # 2. ENTRENAMIENTO
+    # Entrenar modelo
     modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad_objetivo=modalidad)
     
-    if modelo is not None and not df_hist.empty:
-        # Preparar gráfico (Agrupado por periodo)
+    grafico_labels = []
+    grafico_data = []
+    departamentos_list = []
+    anios_list = [] # ¡IMPORTANTE!
+
+    if modelo and not df_hist.empty:
+        # Gráfico
         df_nacional = df_hist.groupby(['periodo', 'anio', 'trimestre_num'])['total'].sum().reset_index()
         df_nacional = df_nacional.sort_values(by=['anio', 'trimestre_num'])
-        
         grafico_labels = df_nacional['periodo'].tolist()
         grafico_data = df_nacional['total'].tolist()
         
-        # Lista de departamentos para el select
+        # Listas para el formulario (Corrección del error "No se encontraron datos")
         departamentos_list = sorted(df_hist['departamento'].unique().tolist())
+        anios_list = sorted(df_hist['anio'].unique().tolist())
+        
+        # Agregamos 2026 si no está, para poder proyectar a futuro
+        if 2026 not in anios_list:
+            anios_list.append(2026)
 
-        # 3. PROCESAR FORMULARIO (Si se dio clic a Estimar)
+        # Proceso del Formulario
         if request.method == 'POST':
             try:
-                # Obtenemos datos del formulario
                 anio_sim = int(request.form.get('anio', 2025))
                 trim_sim = request.form.get('trimestre', 'T1')
                 dpto_sim = request.form.get('departamento', dpto_sim)
                 
-                # Ejecutamos la predicción
-                val_pred = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
-                resultado_sim = val_pred # Guardamos el resultado
+                # 1. Predicción Numérica (Random Forest)
+                resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
+                
+                # 2. Análisis Cognitivo (Gemini AI) - ¡AQUÍ ESTÁ LA INTEGRACIÓN!
+                analisis_ia_txt = analizar_riesgo_ia(resultado_sim, modalidad, dpto_sim, trim_sim, anio_sim)
                 
             except Exception as e:
-                print(f"Error en simulación: {e}")
-                resultado_sim = 0 # En caso de error, devolvemos 0
+                print(f"Error simulación: {e}")
 
-    # 4. PREPARAR OBJETO 'ENTRADA' (Para el título del resultado)
     entrada_datos = {
         "anio": anio_sim,
         "trimestre": trim_sim,
         "departamento": dpto_sim
     }
 
-    # 5. RENDERIZADO FINAL
     return render_template('riesgo_modalidad.html',
                            modalidad=modalidad,
                            labels=grafico_labels,
-                           valores=grafico_data,    # <--- La variable crítica
+                           valores=grafico_data,
+                           # Enviamos las listas correctas
                            departamentos=departamentos_list,
-                           entrada=entrada_datos,   # <--- La variable del título
-                           resultado=resultado_sim) # <--- El número predicho
+                           anios_disp=anios_list, 
+                           trimestres_disp=["T1", "T2", "T3", "T4"],
+                           entrada=entrada_datos,
+                           resultado=resultado_sim,
+                           analisis_ia=analisis_ia_txt) # Enviamos el texto de la IA
 
 # ============================================================
 # Análisis Trimestral (Extorsión vs Homicidio)

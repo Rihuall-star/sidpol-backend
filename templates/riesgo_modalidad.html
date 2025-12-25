@@ -1,121 +1,128 @@
-{% extends "base.html" %}
-
+{% extends "layout.html" %}
 {% block title %}Riesgo por modalidad{% endblock %}
-
 {% block content %}
 
-<h1 class="mb-4">Riesgo estimado de {{ modalidad }}</h1>
+<div class="container mt-4">
+    <h1 class="mb-4 text-gray-800">Análisis de Riesgo: <span class="text-primary">{{ modalidad }}</span></h1>
 
-<p class="text-muted">
-    Esta sección utiliza un modelo de <strong>RandomForestRegressor</strong> 
-    (scikit-learn) para estimar el número de denuncias trimestrales 
-    de la modalidad <strong>{{ modalidad }}</strong>, a partir de la serie histórica 2018–2025.
-</p>
-
-<div class="row mb-4">
-    <!-- Gráfico histórico -->
-    <div class="col-md-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h5 class="card-title">Histórico trimestral (a nivel nacional)</h5>
-                <canvas id="graficoRiesgo"></canvas>
-                <p class="text-muted mt-2">
-                    Evolución trimestral del total de denuncias registradas a nivel nacional
-                    para la modalidad analizada.
-                </p>
+    <div class="row mb-4">
+        <div class="col-md-7">
+            <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Comportamiento Histórico</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height:300px;">
+                        <canvas id="graficoRiesgo"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Formulario de simulación -->
-    <div class="col-md-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <h5 class="card-title">Simular riesgo trimestral</h5>
-                {% if anios_disp %}
-                <form method="post">
-                    <div class="mb-3">
-                        <label for="anio" class="form-label">Año</label>
-                        <select name="anio" id="anio" class="form-select" required>
-                            {% for anio in anios_disp %}
-                                <option value="{{ anio }}">{{ anio }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="trimestre" class="form-label">Trimestre</label>
-                        <select name="trimestre" id="trimestre" class="form-select" required>
-                            {% for tri in trimestres_disp %}
-                                <option value="{{ tri }}">{{ tri }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="departamento" class="form-label">Departamento (contexto)</label>
-                        <select name="departamento" id="departamento" class="form-select">
-                            {% for d in dptos %}
-                                <option value="{{ d }}">{{ d }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">
-                            En esta versión del modelo el departamento se usa solo como contexto descriptivo.
+        <div class="col-md-5">
+            <div class="card shadow h-100">
+                <div class="card-header py-3 bg-gray-100">
+                    <h6 class="m-0 font-weight-bold text-dark">Simulador de Escenarios</h6>
+                </div>
+                <div class="card-body">
+                    {% if anios_disp %}
+                    <form method="post">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="font-weight-bold">Año</label>
+                                <select name="anio" class="form-control">
+                                    {% for a in anios_disp %}
+                                    <option value="{{ a }}" {% if entrada.anio == a %}selected{% endif %}>{{ a }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="font-weight-bold">Trimestre</label>
+                                <select name="trimestre" class="form-control">
+                                    {% for t in trimestres_disp %}
+                                    <option value="{{ t }}" {% if entrada.trimestre == t %}selected{% endif %}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">Departamento</label>
+                            <select name="departamento" class="form-control">
+                                {% for d in departamentos %}
+                                <option value="{{ d }}" {% if entrada.departamento == d %}selected{% endif %}>{{ d }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-search-location"></i> Analizar Riesgo con IA
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        Cargando datos históricos... si este mensaje persiste, verifique la base de datos.
                     </div>
-
-                    <button type="submit" class="btn btn-primary">Estimar denuncias</button>
-                </form>
-                {% else %}
-                    <p class="text-danger">
-                        No se encontraron datos históricos suficientes para entrenar el modelo.
-                    </p>
-                {% endif %}
-
-                {% if prediccion is not none %}
-                    <hr>
-                    <h5>Resultado de la estimación</h5>
-                    <p>
-                        Para <strong>{{ entrada.trimestre }}</strong> del año 
-                        <strong>{{ entrada.anio }}</strong>
-                        en el contexto del departamento 
-                        <strong>{{ entrada.departamento }}</strong>,
-                        el modelo estima aproximadamente:
-                    </p>
-                    <p class="display-6">{{ prediccion }}</p>
-                    <p class="text-muted">
-                        denuncias de {{ modalidad }} en ese trimestre.
-                    </p>
-                {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
+
+    {% if analisis_ia %}
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow mb-4 border-left-danger">
+                <div class="card-body text-center">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                        Proyección Estimada
+                    </div>
+                    <div class="h1 mb-0 font-weight-bold text-gray-800">{{ resultado }}</div>
+                    <div class="text-gray-500 mt-2">Denuncias</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow mb-4 border-left-success">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="fas fa-robot"></i> Análisis Táctico (Gemini AI)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-dark" style="white-space: pre-line;">
+                        {{ analisis_ia }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctxRiesgo = document.getElementById('graficoRiesgo');
-
-    const etiquetasRiesgo = {{ labels | tojson }};
-    const datosRiesgo = {{ valores | tojson }};
-
-    new Chart(ctxRiesgo, {
+    const ctx = document.getElementById('graficoRiesgo').getContext('2d');
+    const labels = {{ labels | tojson }};
+    const data = {{ valores | tojson }};
+    
+    new Chart(ctx, {
         type: 'line',
         data: {
-            labels: etiquetasRiesgo,
+            labels: labels,
             datasets: [{
-                label: 'Denuncias trimestrales de {{ modalidad }} (histórico)',
-                data: datosRiesgo,
-                borderWidth: 2,
-                tension: 0.1
+                label: 'Histórico {{ modalidad }}',
+                data: data,
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                tension: 0.3,
+                fill: true
             }]
         },
         options: {
-            responsive: true,
-            scales: {
-                y: { beginAtZero: true }
-            }
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
         }
     });
 </script>
-
 {% endblock %}
