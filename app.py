@@ -575,82 +575,59 @@ def cluster_departamentos():
 # riesgo-modalidad
 # ============================================================
 
-@app.route("/riesgo-modalidad", methods=["GET", "POST"])
+# Asegúrate de importar esto al inicio de app.py
+from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
+
+@app.route('/riesgo-modalidad', methods=['GET', 'POST'])
 @login_required
 def riesgo_modalidad():
-    modalidad = "Extorsión"  # puedes cambiarlo o parametrizarlo luego
-
-    modelo, df_hist = entrenar_modelo_riesgo(col, modalidad_objetivo=modalidad)
-
-    prediccion = None
-    entrada = None
-
+    # USAMOS LA COLECCIÓN GRANDE
+    col = db['denuncias']
+    
     # Valores por defecto
-    anios_disp = []
-    trimestres_disp = []
-    dptos = []
-    labels = []
-    valores = []
+    modalidad = "Extorsión" 
+    anio_sim = 2025
+    trim_sim = "T1"
+    dpto_sim = "LIMA METROPOLITANA" # Default común
+    resultado_sim = 0
+    
+    # Entrenamos el modelo al cargar la página (o cargamos uno cacheado idealmente)
+    modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad_objetivo=modalidad)
+    
+    grafico_labels = []
+    grafico_data = []
+    departamentos_list = []
 
-    if modelo is not None and df_hist is not None and not df_hist.empty:
-        # Listas para el formulario
-        anios_disp = sorted(df_hist["anio"].unique().tolist())
-        trimestres_disp = ["T1", "T2", "T3", "T4"]
-        dptos = sorted(df_hist["departamento"].unique().tolist())
+    if modelo and not df_hist.empty:
+        # Preparamos datos para el gráfico (Agrupado Nacional por trimestre)
+        df_nacional = df_hist.groupby('periodo')['total'].sum().reset_index()
+        grafico_labels = df_nacional['periodo'].tolist()
+        grafico_data = df_nacional['total'].tolist()
+        
+        # Lista de departamentos para el select
+        departamentos_list = sorted(df_hist['departamento'].unique().tolist())
 
-        # Serie histórica trimestral nacional (para el gráfico)
-        df_hist_total = (
-            df_hist.groupby(["anio", "trimestre"], as_index=False)["total"].sum()
-        )
-        df_hist_total["label"] = (
-            df_hist_total["anio"].astype(str) + "-" + df_hist_total["trimestre"]
-        )
-        labels = df_hist_total["label"].tolist()
-        valores = df_hist_total["total"].tolist()
+        # Si es POST (el usuario dio click a "Estimar")
+        if request.method == 'POST':
+            try:
+                anio_sim = int(request.form.get('anio', 2025))
+                trim_sim = request.form.get('trimestre', 'T1')
+                dpto_sim = request.form.get('departamento', dpto_sim)
+                
+                # Realizar predicción
+                resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
+            except Exception as e:
+                print(f"Error en formulario: {e}")
 
-        if request.method == "POST":
-            anio_sel = int(request.form.get("anio"))
-            tri_sel = request.form.get("trimestre")
-            dpto_sel = request.form.get("departamento")
-
-            mapa_tri = {"T1": 1, "T2": 2, "T3": 3, "T4": 4}
-            tri_num = mapa_tri.get(tri_sel, 1)
-
-            X_new = pd.DataFrame([{
-                "anio": anio_sel,
-                "tri_num": tri_num
-            }])
-
-            y_pred = modelo.predict(X_new)[0]
-            prediccion = round(y_pred)
-
-            entrada = {
-                "anio": anio_sel,
-                "trimestre": tri_sel,
-                "departamento": dpto_sel
-            }
-
-            # 👉 OPCIONAL: guardar la simulación en MongoDB
-            db["simulaciones_riesgo"].insert_one({
-                "modalidad": modalidad,
-                "anio": anio_sel,
-                "trimestre": tri_sel,
-                "departamento": dpto_sel,
-                "prediccion": prediccion,
-                "creado_en": datetime.utcnow()
-            })
-
-    return render_template(
-        "riesgo_modalidad.html",
-        modalidad=modalidad,
-        prediccion=prediccion,
-        entrada=entrada,
-        labels=labels,
-        valores=valores,
-        anios_disp=anios_disp,
-        trimestres_disp=trimestres_disp,
-        dptos=dptos
-    )
+    return render_template('riesgo_modalidad.html',
+                           modalidad=modalidad,
+                           labels=grafico_labels,
+                           data=grafico_data,
+                           departamentos=departamentos_list,
+                           sel_anio=anio_sim,
+                           sel_trim=trim_sim,
+                           sel_dpto=dpto_sim,
+                           resultado=resultado_sim)
 
 # ============================================================
 # Análisis Trimestral (Extorsión vs Homicidio)
