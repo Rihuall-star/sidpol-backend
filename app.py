@@ -497,16 +497,41 @@ def chat_ia():
     if not mensaje: return jsonify({'respuesta': "No entendí."})
     
     try:
-        # Contexto simple para el chat
         col = db['denuncias']
-        total, _, _, _, _ = predecir_total_2026(col)
-        contexto = f"Proyección delitos 2026: {total:,}."
         
-        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto)
+        # 1. OBTENER DATOS HISTÓRICOS REALES (Agrupados por Año)
+        # Esto hace que MongoDB sume el total de delitos por cada año
+        pipeline = [
+            {"$group": {"_id": "$anio", "total": {"$sum": "$total"}}},
+            {"$sort": {"_id": 1}} # Ordenar del más antiguo al más nuevo
+        ]
+        datos_historicos = list(col.aggregate(pipeline))
+        
+        # Convertimos los datos a texto para que la IA los entienda
+        # Ejemplo: "2023: 50,000 delitos. 2024: 60,000 delitos."
+        texto_historico = ""
+        for d in datos_historicos:
+            texto_historico += f"- Año {d['_id']}: {d['total']:,} denuncias.\n"
+
+        # 2. OBTENER PROYECCIÓN FUTURA (Lo que ya tenías)
+        total_2026, _, _, _, _ = predecir_total_2026(col)
+        
+        # 3. CONSTRUIR EL CONTEXTO COMPLETO
+        contexto_full = f"""
+        DATOS REALES DE LA BASE DE DATOS (HISTÓRICO):
+        {texto_historico}
+        
+        PROYECCIÓN A FUTURO (PREDICCIÓN IA):
+        - Año 2026 (Estimado): {total_2026:,} incidentes.
+        """
+        
+        # 4. ENVIAR A GEMINI
+        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto_full)
         return jsonify({'respuesta': respuesta})
+
     except Exception as e:
         print(f"Error Chat: {e}")
-        return jsonify({'respuesta': "Error interno."})
+        return jsonify({'respuesta': "Error consultando la base de datos."})
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
 # ============================================================

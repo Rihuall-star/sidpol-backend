@@ -178,66 +178,6 @@
     </div>
 </div>
 
-<script>
-    function toggleChat() {
-        const w = document.getElementById('chatbot-window');
-        w.style.display = (w.style.display === 'none' || w.style.display === '') ? 'block' : 'none';
-    }
-    
-    function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
 
-    function sendMessage() {
-        const input = document.getElementById('chat-input');
-        const msg = input.value.trim();
-        if(!msg) return;
-
-        const chatBody = document.getElementById('chat-messages');
-        
-        // Mensaje Usuario
-        chatBody.innerHTML += `
-            <div class="d-flex justify-content-end mb-2">
-                <div class="p-2 bg-primary text-white rounded shadow-sm small" style="max-width: 80%;">
-                    ${msg}
-                </div>
-            </div>`;
-        
-        input.value = '';
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        // Loading
-        const loadId = 'loading-' + Date.now();
-        chatBody.innerHTML += `
-            <div id="${loadId}" class="d-flex justify-content-start mb-2">
-                <div class="p-2 bg-white border rounded shadow-sm small text-muted">
-                    <i class="fas fa-circle-notch fa-spin"></i> Procesando...
-                </div>
-            </div>`;
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        // Petición al Servidor
-        fetch('/chat-ia', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `mensaje=${encodeURIComponent(msg)}`
-        })
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById(loadId).remove();
-            // Respuesta IA
-            const respuesta = data.respuesta || "Sin respuesta.";
-            chatBody.innerHTML += `
-                <div class="d-flex justify-content-start mb-2">
-                    <div class="p-2 bg-white border rounded shadow-sm small text-dark" style="max-width: 85%;">
-                        ${respuesta.replace(/\n/g, '<br>')}
-                    </div>
-                </div>`;
-            chatBody.scrollTop = chatBody.scrollHeight;
-        })
-        .catch(err => {
-            document.getElementById(loadId).remove();
-            console.error(err);
-        });
-    }
-</script>
 </body>
 </html>

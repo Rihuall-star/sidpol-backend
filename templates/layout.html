@@ -1,64 +1,110 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Sistema de Inteligencia Policial">
+    <meta name="author" content="SIDPOL">
+
     <title>SIDPOL - Inteligencia Policial</title>
+
     <link href="{{ url_for('static', filename='vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/sb-admin-2.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
 </head>
 
 <body id="page-top">
 
     <div id="wrapper">
-        
+
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url_for('index') }}">
-                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-shield-alt"></i></div>
+                <div class="sidebar-brand-icon rotate-n-15">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
                 <div class="sidebar-brand-text mx-3">SIDPOL <sup>v1.0</sup></div>
             </a>
-            <hr class="sidebar-divider my-0">
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('riesgo_modalidad') }}"><i class="fas fa-fw fa-chart-area"></i><span>Agente Logístico</span></a></li>
-        </ul>
 
+            <hr class="sidebar-divider my-0">
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('index') }}">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Dashboard (Estratégico)</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('riesgo_modalidad') }}">
+                    <i class="fas fa-fw fa-chart-area"></i>
+                    <span>Agente Logístico (Riesgo)</span>
+                </a>
+            </li>
+
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
         <div id="content-wrapper" class="d-flex flex-column">
             <div id="content">
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    </nav>
 
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item dropdown no-arrow">
+                            <span class="mr-2 d-none d-lg-inline text-gray-600 small">Oficial Activo</span>
+                            <img class="img-profile rounded-circle" src="https://source.unsplash.com/QAB-WJcbgJk/60x60">
+                        </li>
+                    </ul>
+                </nav>
                 <div class="container-fluid">
                     {% block content %}{% endblock %}
                 </div>
+
             </div>
-            
             <footer class="sticky-footer bg-white">
-                <div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; SIDPOL 2025</span></div></div>
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Copyright &copy; SIDPOL Sistema de Inteligencia 2025</span>
+                    </div>
+                </div>
             </footer>
         </div>
     </div>
     <div id="chatbot-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
         
-        <button onclick="toggleChat()" style="width: 60px; height: 60px; border-radius: 50%; background-color: #1cc88a; border: none; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer;">
+        <button id="chatbot-trigger" onclick="toggleChat()" style="width: 60px; height: 60px; border-radius: 50%; background-color: #1cc88a; border: none; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.2s;">
             <i class="fas fa-comment-dots fa-lg"></i>
         </button>
 
-        <div id="chatbot-window" class="card shadow-lg" style="display: none; position: absolute; bottom: 75px; right: 0; width: 350px; border: none;">
+        <div id="chatbot-window" class="card shadow-lg" style="display: none; position: absolute; bottom: 75px; right: 0; width: 350px; border: none; border-radius: 15px; overflow: hidden;">
+            
             <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
                 <span><i class="fas fa-robot mr-2"></i>SIDPOL AI</span>
                 <button class="btn btn-sm text-white" onclick="toggleChat()"><i class="fas fa-times"></i></button>
             </div>
-            <div id="chat-messages" class="card-body bg-light" style="height: 300px; overflow-y: auto;">
+
+            <div id="chat-messages" class="card-body bg-light" style="height: 320px; overflow-y: auto;">
                 <div class="p-2 bg-white rounded mb-2 shadow-sm border">
-                    <p class="mb-0 text-dark small">Soy Gemini 2.5. ¿En qué puedo apoyar?</p>
+                    <small class="text-muted font-weight-bold">Sistema</small>
+                    <p class="mb-0 text-dark small">Soy Gemini 2.5, tu analista de seguridad. ¿En qué puedo apoyar hoy?</p>
                 </div>
             </div>
-            <div class="card-footer p-2">
+
+            <div class="card-footer p-2 bg-white">
                 <div class="input-group">
-                    <input type="text" id="chat-input" class="form-control form-control-sm" placeholder="Consulta..." onkeypress="handleEnter(event)">
+                    <input type="text" id="chat-input" class="form-control form-control-sm border-0 bg-light" placeholder="Escriba su consulta..." onkeypress="handleEnter(event)">
                     <div class="input-group-append">
-                        <button class="btn btn-success btn-sm" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+                        <button class="btn btn-success btn-sm rounded-circle ml-2" onclick="sendMessage()" style="width: 35px; height: 35px;">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -68,19 +114,46 @@
     <script>
         function toggleChat() {
             const w = document.getElementById('chatbot-window');
-            w.style.display = (w.style.display === 'none' || w.style.display === '') ? 'block' : 'none';
+            // Animación simple de entrada
+            if (w.style.display === 'none' || w.style.display === '') {
+                w.style.display = 'block';
+                document.getElementById('chat-input').focus();
+            } else {
+                w.style.display = 'none';
+            }
         }
+        
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const msg = input.value.trim();
             if(!msg) return;
-            
+
             const chatBody = document.getElementById('chat-messages');
-            chatBody.innerHTML += `<div class="d-flex justify-content-end mb-2"><div class="p-2 bg-primary text-white rounded small" style="max-width:80%">${msg}</div></div>`;
+            
+            // 1. Mostrar mensaje del usuario
+            chatBody.innerHTML += `
+                <div class="d-flex justify-content-end mb-2">
+                    <div class="p-2 bg-primary text-white rounded shadow-sm small" style="max-width: 80%;">
+                        ${msg}
+                    </div>
+                </div>`;
+            
             input.value = '';
             chatBody.scrollTop = chatBody.scrollHeight;
 
+            // 2. Mostrar indicador de carga (Loading...)
+            const loadId = 'loading-' + Date.now();
+            chatBody.innerHTML += `
+                <div id="${loadId}" class="d-flex justify-content-start mb-2">
+                    <div class="p-2 bg-white border rounded shadow-sm small text-muted">
+                        <i class="fas fa-circle-notch fa-spin mr-1"></i> Analizando...
+                    </div>
+                </div>`;
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            // 3. Enviar al Backend
             fetch('/chat-ia', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -88,16 +161,35 @@
             })
             .then(r => r.json())
             .then(data => {
-                const resp = data.respuesta || "Sin respuesta";
-                chatBody.innerHTML += `<div class="d-flex justify-content-start mb-2"><div class="p-2 bg-white border rounded small text-dark" style="max-width:85%">${resp}</div></div>`;
+                // Quitar indicador de carga
+                const loader = document.getElementById(loadId);
+                if(loader) loader.remove();
+
+                // Mostrar respuesta
+                const resp = data.respuesta || "Sin respuesta del servidor.";
+                // Formatear saltos de línea y negritas básicas
+                const respFormatted = resp.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+                chatBody.innerHTML += `
+                    <div class="d-flex justify-content-start mb-2">
+                        <div class="p-2 bg-white border rounded shadow-sm small text-dark" style="max-width: 85%;">
+                            ${respFormatted}
+                        </div>
+                    </div>`;
                 chatBody.scrollTop = chatBody.scrollHeight;
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                const loader = document.getElementById(loadId);
+                if(loader) loader.remove();
+                console.error(err);
+                chatBody.innerHTML += `<div class="text-danger small text-center">Error de conexión.</div>`;
+            });
         }
     </script>
 
     <script src="{{ url_for('static', filename='vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/jquery-easing/jquery.easing.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sb-admin-2.min.js') }}"></script>
 
 </body>
