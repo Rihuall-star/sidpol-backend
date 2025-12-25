@@ -486,25 +486,24 @@ def prediccion_2026():
 # ============================================================
 #  CHAT IA: Conversar con Gemini + Dataset real
 # ============================================================
-
+from flask import jsonify, request
 @app.route('/chat-ia', methods=['POST'])
 @login_required
 def chat_ia():
     mensaje_usuario = request.form.get('mensaje')
-    
-    if not mensaje_usuario:
-        return jsonify({'respuesta': "No entendí tu mensaje."})
+    if not mensaje_usuario: return jsonify({'respuesta': "No entendí."})
 
-    # 1. Obtenemos un dato clave para que el chat sea inteligente
+    # Obtenemos dato real para darle contexto
     col = db['denuncias']
     total_2026, _, _, _, _ = predecir_total_2026(col)
     
-    contexto_rapido = f"La proyección total de delitos para 2026 es de {total_2026:,} incidentes."
-
-    # 2. Llamamos a la IA REAL (Ya no el placeholder)
-    respuesta_ia = consultar_chat_general(mensaje_usuario, contexto_datos=contexto_rapido)
+    # Contexto real
+    contexto = f"El total proyectado para 2026 es {total_2026:,} casos."
     
-    return jsonify({'respuesta': respuesta_ia})
+    # Llamada real a Gemini
+    respuesta = consultar_chat_general(mensaje_usuario, contexto_datos=contexto)
+    
+    return jsonify({'respuesta': respuesta})
 
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
