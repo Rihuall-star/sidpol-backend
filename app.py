@@ -486,29 +486,23 @@ def prediccion_2026():
 #  CHAT IA: Conversar con Gemini + Dataset real
 # ============================================================
 
-@app.route("/chat-ia", methods=["GET", "POST"])
+from flask import jsonify, request
+
+@app.route('/chat-ia', methods=['GET', 'POST'])
 @login_required
 def chat_ia():
-    if "chat_historial" not in session:
-        session["chat_historial"] = []
-    historial = session["chat_historial"]
-
-    if request.method == "POST":
-        mensaje = request.form.get("mensaje", "").strip()
-
-        if mensaje:
-
-            # 🚀 Nuevo motor de IA
-            contexto = construir_contexto(col, mensaje)
-
-            respuesta = preguntar_gemini(mensaje, contexto=contexto)
-
-            historial.append({"rol": "usuario", "texto": mensaje})
-            historial.append({"rol": "ia", "texto": respuesta})
-
-            session["chat_historial"] = historial
-
-    return render_template("chat_ia.html", historial=historial)
+    if request.method == 'POST':
+        mensaje_usuario = request.form.get('mensaje')
+        
+        # Aquí llamas a tu función de IA
+        # respuesta_ia = consultar_gemini_general(mensaje_usuario)
+        
+        # Simulación por si no tienes la función general lista:
+        respuesta_ia = "Recibido: " + mensaje_usuario + ". (Aquí responderá Gemini 2.5)"
+        
+        return jsonify({'respuesta': respuesta_ia})
+        
+    return render_template('chat_ia.html') # Opcional si tienes página dedicada
 
 # ============================================================
 #  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
