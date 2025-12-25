@@ -471,13 +471,11 @@ def regiones():
 @app.route('/prediccion-2026')
 @login_required
 def prediccion_2026():
-    # 1. Conectamos a la base de datos de riesgo
-    col = db['simulaciones_riesgo'] 
+    # CAMBIO CLAVE: Usamos 'denuncias' que tiene los millones de registros
+    col = db['denuncias'] 
     
-    # 2. Obtenemos los datos calculados desde cero
     total, etiquetas, valores, historico, anios = predecir_total_2026(col)
     
-    # 3. Renderizamos el archivo CON EL NOMBRE CORRECTO
     return render_template('prediccion_2026.html', 
                            total=total, 
                            etiquetas=etiquetas, 
@@ -807,10 +805,11 @@ def reporte_lima():
 @app.route('/agente-estrategico')
 @login_required
 def agente_estrategico():
-    col = db['simulaciones_riesgo']
+    # CAMBIO CLAVE: Usamos 'denuncias'
+    col = db['denuncias']
     total_2026, _, _, _, _ = predecir_total_2026(col)
     
-    mensaje = f"Se estima un total de {total_2026} incidentes críticos para el 2026 según el análisis de tendencias."
+    mensaje = f"Se estima un total de {total_2026} incidentes para el 2026 basado en el histórico real."
     
     return render_template('agente_estrategico.html', total=total_2026, analisis=mensaje)
 
@@ -820,7 +819,8 @@ def agente_estrategico():
 @app.route('/agente-logistico')
 @login_required
 def agente_logistico():
-    col = db['simulaciones_riesgo']
+    # CAMBIO CLAVE: Usamos 'denuncias'
+    col = db['denuncias']
     datos_clusters = clusterizar_departamentos(col, n_clusters=3)
     return render_template('agente_logistico.html', clusters=datos_clusters)
 
