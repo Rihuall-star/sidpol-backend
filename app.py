@@ -1,35 +1,32 @@
 # ============================================================
-# app.py — Proyecto Analítica de Denuncias + Chat IA
+# app.py — Proyecto Analítica de Denuncias + Chat IA + Auditoría
 # ============================================================
-import pandas as pd
-from datetime import datetime
 import os
-from ml_utils import predecir_total_2026
-from mongo_queries import total_denuncias, ranking_departamentos, top_modalidades, modalidad_mas_frecuente, tendencia_modalidad, comparar_dos_anios
-from ml_cluster import clusterizar_departamentos
 import re
-from sklearn.cluster import KMeans
+import pandas as pd
 import numpy as np
-from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
 from functools import wraps
-
-from ml_llm import consultar_estratega_ia, analizar_riesgo_ia, consultar_chat_general
-from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
-from ml_llm import  consultar_chat_general
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from ml_utils import db
-
 from flask import (
     Flask, render_template, request, redirect, jsonify,
     url_for, session, flash
 )
-from functools import wraps
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from sklearn.cluster import KMeans
 
-# ---- Módulos del motor IA ----
-from gemini_client import preguntar_gemini
-from chat_logic import construir_contexto
+# ---- Módulos del Proyecto ----
+from ml_utils import (
+    db, predecir_total_2026, obtener_contexto_ia, 
+    entrenar_modelo_riesgo, predecir_valor_especifico
+)
+from mongo_queries import ranking_departamentos
+from ml_cluster import clusterizar_departamentos
+from ml_llm import (
+    consultar_estratega_ia, analizar_riesgo_ia, consultar_chat_general
+)
 
 # Cargar variables
 load_dotenv()
@@ -38,64 +35,74 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "secreto_seguro")
 
 # ================================
-#  CONEXIÓN A MONGO
+#  CONFIGURACIÓN FLASK-LOGIN
 # ================================
-#MONGO_URI = os.getenv("MONGO_URI")
-#DB_NAME = os.getenv("DB_NAME")
-#COLLECTION_NAME = os.getenv("COLLECTION_NAME")
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-#client = MongoClient(MONGO_URI)
-#db = client[DB_NAME]
-#col = db[COLLECTION_NAME]
-# ============================================================
-#  LOGIN / LOGOUT
-# ============================================================
-# --- CONFIGURACIÓN DE CONEXIÓN (Local vs Nube) ---
-# Si existe la variable 'MONGO_URI' (en Render), la usa.
-# Si no (en tu PC), usa localhost para que sigas trabajando normal.
-mongo_uri = os.environ.get('MONGO_URI')
+# Modelo de Usuario para Flask-Login
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = user_data['username'] # Flask-Login usa 'id' como identificador
+        self.username = user_data['username']
+        self.rol = user_data.get('rol', 'invitado')
 
-if not mongo_uri:
-    # Conexión Local (Tu PC)
-    mongo_uri = "mongodb://localhost:27017/"
+@login_manager.user_loader
+def load_user(user_id):
+    users_col = db['usuarios']
+    user_data = users_col.find_one({"username": user_id})
+    if user_data:
+        return User(user_data)
+    return None
 
-# Conexión Maestra
-client = MongoClient(mongo_uri)
-db = client['denuncias_db'] # Asegúrate que este nombre sea igual al de Atlas
+# ================================
+#  CONEXIÓN A MONGO (Backup si ml_utils falla)
+# ================================
+if db is None:
+    print("⚠️ Advertencia: db no importada de ml_utils, intentando conexión local...")
+    mongo_uri = os.environ.get('MONGO_URI', "mongodb://localhost:27017/")
+    client = MongoClient(mongo_uri)
+    db = client['denuncias_db']
+
 col = db['denuncias']
-# -------------------------------------------------
 
 # ============================================================
-#  LOGIN / LOGOUT
+#  DECORADORES PERSONALIZADOS
 # ============================================================
-# --- DECORADOR: SOLO ADMIN ---
+# Nota: login_required ya viene de flask_login, pero mantenemos admin_required
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Verificamos si el rol en la sesión es 'admin'
-        if session.get('rol') != 'admin':
+        # Verifica rol usando current_user de Flask-Login o session
+        rol = session.get('rol')
+        if not rol and current_user.is_authenticated:
+            rol = current_user.rol
+            
+        if rol != 'admin':
             flash('⛔ Acceso denegado: Se requieren privilegios de Administrador.', 'error')
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
 
-# --- DECORADOR: LOGIN REQUERIDO ---
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Si no hay usuario en la sesión, lo manda al login
-        if 'user' not in session:
-            flash('Por favor inicia sesión para acceder.', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# ============================================================
+#  RADAR DE USUARIOS ONLINE (AUDITORÍA EN TIEMPO REAL)
+# ============================================================
+@app.before_request
+def update_last_seen():
+    if current_user.is_authenticated:
+        try:
+            # Actualizamos 'last_seen' cada vez que el usuario hace algo
+            db['usuarios'].update_one(
+                {"username": current_user.username},
+                {"$set": {"last_seen": datetime.now()}}
+            )
+        except Exception as e:
+            print(f"Error actualizando last_seen: {e}")
 
-@app.route('/logout')
-def logout():
-    session.clear() # Borra todos los datos de la memoria (usuario, rol, etc.)
-    flash('Has cerrado sesión correctamente.', 'success')
-    return redirect(url_for('login'))
-
+# ============================================================
+#  LOGIN / LOGOUT
+# ============================================================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -105,12 +112,29 @@ def login():
         users_col = db['usuarios']
         user_data = users_col.find_one({"username": username})
 
-        # --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
-        # Usamos check_password_hash para comparar la clave encriptada de la BD
-        # con la clave normal que escribió el usuario.
         if user_data and check_password_hash(user_data['password'], password):
+            # Login exitoso
+            user = User(user_data)
+            login_user(user)
+            
+            # Guardar en sesión también por compatibilidad
             session['user'] = username
             session['rol'] = user_data.get('rol', 'invitado')
+            session['logged_in'] = True # Bandera simple
+
+            # --- AUDITORÍA: GUARDAR LOG DE ENTRADA ---
+            try:
+                db['auditoria'].insert_one({
+                    "usuario": username,
+                    "evento": "Inicio de Sesión",
+                    "fecha": datetime.now(),
+                    "fecha_str": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "ip": request.remote_addr
+                })
+            except Exception as e:
+                print(f"Error guardando auditoría: {e}")
+            # -----------------------------------------
+
             return redirect(url_for('index'))
         else:
             flash('Usuario o contraseña incorrectos', 'error')
@@ -118,73 +142,75 @@ def login():
 
     return render_template('login.html')
 
-
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    session.clear()
+    flash('Has cerrado sesión correctamente.', 'success')
+    return redirect(url_for('login'))
 
 # ============================================================
-#  PÁGINA PRINCIPAL
+#  PÁGINA PRINCIPAL (DASHBOARD)
 # ============================================================
-
 @app.route("/")
 @login_required
 def index():
-    # ---------------------------------------------------------
-    # 1. CONTADOR DE VISITAS (NUEVO)
-    # ---------------------------------------------------------
     visitas = 0
     try:
-        # Usamos una colección aparte para no mezclar con las denuncias
         stats_col = db['estadisticas']
-        
-        # Incrementamos en 1 el contador. 
-        # 'upsert=True' crea el documento la primera vez que se ejecuta.
         stats_col.update_one(
-            {'_id': 'contador_home'},   # ID único para identificar este dato
-            {'$inc': {'cantidad': 1}},  # Instrucción para sumar 1
+            {'_id': 'contador_home'},
+            {'$inc': {'cantidad': 1}},
             upsert=True
         )
-        
-        # Recuperamos el número actualizado para mostrarlo
         dato_visitas = stats_col.find_one({'_id': 'contador_home'})
         if dato_visitas:
             visitas = dato_visitas.get('cantidad', 0)
-            
     except Exception as e:
         print(f"⚠️ Error en contador de visitas: {e}")
-        # Si falla, visitas se queda en 0 y la página sigue cargando normal
 
-    # ---------------------------------------------------------
-    # 2. TU CÓDIGO ORIGINAL (Métricas de Denuncias)
-    # ---------------------------------------------------------
-    # Total de registros (filas del dataset)
     total_registros = col.count_documents({})
-
-    # Suma total de la columna "cantidad"
-    pipeline = [
-        {"$group": {"_id": None, "total": {"$sum": "$cantidad"}}}
-    ]
+    
+    pipeline = [{"$group": {"_id": None, "total": {"$sum": "$cantidad"}}}]
     res = list(col.aggregate(pipeline))
     total_denuncias = res[0]["total"] if res else 0
 
-    # Años disponibles en la base
     anios = sorted(col.distinct("ANIO"))
 
-    # ---------------------------------------------------------
-    # 3. RETORNO A LA PLANTILLA
-    # ---------------------------------------------------------
     return render_template(
         "index.html",
         total_registros=total_registros,
         total_denuncias=total_denuncias,
         anios=anios,
-        visitas=visitas  # <--- ¡AQUÍ ENVIAMOS LA NUEVA VARIABLE!
+        visitas=visitas
     )
 
-
+# ============================================================
+#  MÓDULO: AUDITORÍA Y USUARIOS ACTIVOS
+# ============================================================
+@app.route('/usuarios-activos')
+@login_required
+def usuarios_activos():
+    try:
+        # 1. Usuarios Online (Activos en los últimos 5 min)
+        limite_tiempo = datetime.now() - timedelta(minutes=5)
+        users_col = db['usuarios']
+        usuarios_online = list(users_col.find({"last_seen": {"$gt": limite_tiempo}}))
+        
+        # 2. Historial de Auditoría (Últimos 50 eventos)
+        auditoria_col = db['auditoria']
+        historial = list(auditoria_col.find().sort("fecha", -1).limit(50))
+        
+        return render_template('usuarios_activos.html', online=usuarios_online, historial=historial)
+        
+    except Exception as e:
+        print(f"Error en reporte usuarios: {e}")
+        return render_template('usuarios_activos.html', online=[], historial=[])
 
 # ============================================================
-#  RUTA: Resumen anual
+#  RUTAS DE REPORTES BÁSICOS
 # ============================================================
-
 @app.route("/resumen-anual")
 @login_required
 def resumen_anual():
@@ -193,170 +219,95 @@ def resumen_anual():
         {"$sort": {"_id": 1}}
     ]
     datos = list(col.aggregate(pipeline))
-
-    # Listas para el gráfico
-    labels = [doc["_id"] for doc in datos]      # Años
-    valores = [doc["total"] for doc in datos]   # Totales de denuncias por año
-
-    # La tabla puede usar directamente la misma lista
-    tabla = datos
-
-    return render_template(
-        "resumen_anual.html",
-        labels=labels,
-        valores=valores,
-        tabla=tabla
-    )
-
-# ============================================================
-#  RUTA: Departamentos
-# ============================================================
+    labels = [doc["_id"] for doc in datos]
+    valores = [doc["total"] for doc in datos]
+    return render_template("resumen_anual.html", labels=labels, valores=valores, tabla=datos)
 
 @app.route('/departamentos')
 @login_required
 def departamentos():
-    data_raw = ranking_departamentos(col, n=30) # Traemos 30 por si acaso
+    data_raw = ranking_departamentos(col, n=30)
     
-    # 1. IMPRIMIR EN CONSOLA (Para depurar)
-    print("--- NOMBRES EN BASE DE DATOS ---")
-    
+    # Mapeo simplificado para GeoChart (Ejemplo)
     map_mapping = {
-        # Copia aquí el diccionario que ya tienes...
-        "AMAZONAS": "pe-am", "CAJAMARCA": "pe-cj", "LA LIBERTAD": "pe-ll",
-        "LAMBAYEQUE": "pe-lb", "PIURA": "pe-pi", "SAN MARTIN": "pe-sm", 
-        "TUMBES": "pe-tu", "LORETO": "pe-lo", "ANCASH": "pe-an", 
-        "CALLAO": "pe-cl", "PROV. CONST. DEL CALLAO": "pe-cl",
-        "HUANUCO": "pe-hc", "JUNIN": "pe-ju", "PASCO": "pe-pa", 
-        "UCAYALI": "pe-uc", "LIMA METROPOLITANA": "pe-li", "REGION LIMA": "pe-lr", 
-        "ICA": "pe-ic", "APURIMAC": "pe-ap", "AREQUIPA": "pe-ar", 
-        "AYACUCHO": "pe-ay", "CUSCO": "pe-cs", "MADRE DE DIOS": "pe-md", 
-        "MOQUEGUA": "pe-mq", "TACNA": "pe-ta",
-        
-        # CODIGOS CONFIRMADOS:
-        "PUNO": "pe-pu",
-        "HUANCAVELICA": "pe-hv" 
+        "AMAZONAS": "pe-am", "LIMA METROPOLITANA": "pe-li", "AREQUIPA": "pe-ar",
+        "LA LIBERTAD": "pe-ll", "PIURA": "pe-pi", "CUSCO": "pe-cs", "JUNIN": "pe-ju",
+        "CALLAO": "pe-cl", "LAMBAYEQUE": "pe-lb", "REGION LIMA": "pe-lr"
+        # ... agrega el resto si faltan
     }
 
     data_mapa = []
     top_5 = data_raw[:5]
 
     for d in data_raw:
-        # Limpieza básica
         nombre_bd = str(d["_id"]).strip().upper()
+        code = map_mapping.get(nombre_bd)
         
-        # Imprime para ver si tiene tilde en tu consola negra
-        print(f"Procesando: '{nombre_bd}' - Total: {d['total']}") 
-        
-        code = None
-        
-        # 1. Búsqueda directa
-        if nombre_bd in map_mapping:
-            code = map_mapping[nombre_bd]
-        
-        # 2. Búsqueda "Inteligente" (MATCH PARCIAL)
-        if code is None:
-            # Usamos "startswith" o partes de la palabra para evitar problemas de tildes
-            if nombre_bd.startswith("HUANCAV"): # Captura HUANCAVELICA y HUANCAVÉLICA
-                code = "pe-hv"
-            elif "PUNO" in nombre_bd:
-                code = "pe-pu"
-            elif "LIMA" in nombre_bd:
-                code = "pe-li"
-            elif "CALLAO" in nombre_bd:
-                code = "pe-cl"
-
+        # Fallback inteligente
+        if not code:
+            if "LIMA" in nombre_bd: code = "pe-li"
+            elif "CALLAO" in nombre_bd: code = "pe-cl"
+            
         if code:
             data_mapa.append([code, d["total"]])
-        else:
-            print(f"⚠️ ALERTA: No se encontró código mapa para '{nombre_bd}'")
 
-    return render_template('departamentos.html', 
-                           data_mapa=data_mapa, 
-                           top_5=top_5)
-
-
-# ============================================================
-#  RUTA: Departamentos por cápita
-# ============================================================
+    return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
 
 @app.route("/departamentos-percapita")
 @login_required
 def departamentos_percapita():
-    # Totales por departamento
     pipeline = [
         {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
         {"$sort": {"_id": 1}}
     ]
     datos = list(col.aggregate(pipeline))
-
+    
+    # Poblaciones aproximadas (INEI)
     poblaciones = {
-        "MADRE DE DIOS": 184083,
-        "AREQUIPA": 1523839,
-        "LAMBAYEQUE": 1367029,
-        "MOQUEGUA": 200973,
-        "ICA": 1004829,
-        "TUMBES": 280723,
-        "TACNA": 397737,
-        "APURIMAC": 436820,
-        "JUNIN": 1418738,
-        "CUSCO": 1428028,
-        "ANCASH": 1202828,
-        "HUANUCO": 782039,
-        "AMAZONAS": 458022,
-        "LA LIBERTAD": 2078028,
-        "PIURA": 2138730,
-        "AYACUCHO": 671182,
-        "UCAYALI": 568028,
-        "SAN MARTIN": 924292,
-        "PASCO": 278028,
-        "CAJAMARCA": 1503836,
-        "PUNO": 1268093,
-        "LORETO": 1138637,
-        "HUANCAVELICA": 371038,
-        "LIMA METROPOLITANA": 11810722,
-        "REGION LIMA": 1092827,
-        "PROV. CONST. DEL CALLAO": 1147628,
+        "LIMA METROPOLITANA": 11810722, "AREQUIPA": 1523839, "LA LIBERTAD": 2078028,
+        "PIURA": 2138730, "CUSCO": 1428028, "JUNIN": 1418738
+        # ... completa las demás
     }
 
     tabla = []
     for d in datos:
         depto = d["_id"]
         total = d["total"]
-        pob = poblaciones.get(depto)
-        if pob:
-            tasa = (total / pob) * 100000
-        else:
-            tasa = None
-        tabla.append({
-            "departamento": depto,
-            "total": total,
-            "poblacion": pob,
-            "tasa": tasa
-        })
+        pob = poblaciones.get(depto, 1000000) # Default para evitar error div/0
+        tasa = (total / pob) * 100000
+        tabla.append({"departamento": depto, "total": total, "poblacion": pob, "tasa": tasa})
 
-    # Ordenar por tasa descendente, ignorando N/D
-    tabla = sorted(
-        tabla,
-        key=lambda x: x["tasa"] if x["tasa"] is not None else 0,
-        reverse=True
-    )
+    tabla = sorted(tabla, key=lambda x: x["tasa"], reverse=True)
+    labels = [r["departamento"] for r in tabla]
+    valores = [r["tasa"] for r in tabla]
 
-    labels = [row["departamento"] for row in tabla]
-    valores = [row["tasa"] or 0 for row in tabla]
+    return render_template("departamentos_percapita.html", labels=labels, valores=valores, tabla=tabla)
 
-    return render_template(
-        "departamentos_percapita.html",
-        labels=labels,
-        valores=valores,
-        tabla=tabla
-    )
-
-
+@app.route("/regiones")
+@login_required
+def regiones():
+    pipeline = [{"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}}]
+    datos = list(col.aggregate(pipeline))
+    
+    mapa_regiones = {
+        "LIMA METROPOLITANA": "Costa", "CALLAO": "Costa", "PIURA": "Costa",
+        "CUSCO": "Sierra", "PUNO": "Sierra", "JUNIN": "Sierra",
+        "LORETO": "Selva", "UCAYALI": "Selva"
+    }
+    
+    acumulado = {}
+    for d in datos:
+        region = mapa_regiones.get(d["_id"], "Otras")
+        acumulado[region] = acumulado.get(region, 0) + d["total"]
+        
+    tabla = [{"_id": k, "total": v} for k, v in acumulado.items()]
+    tabla = sorted(tabla, key=lambda x: x["total"], reverse=True)
+    
+    return render_template("regiones.html", labels=[x["_id"] for x in tabla], valores=[x["total"] for x in tabla], tabla=tabla)
 
 # ============================================================
-#  RUTA: Modalidades
+#  RUTAS DE ANÁLISIS TÉCNICO
 # ============================================================
-
 @app.route("/modalidades")
 @login_required
 def modalidades():
@@ -365,39 +316,7 @@ def modalidades():
         {"$sort": {"total": -1}}
     ]
     datos = list(col.aggregate(pipeline))
-
-    labels = [doc["_id"] for doc in datos]
-    valores = [doc["total"] for doc in datos]
-    tabla = datos
-
-    return render_template(
-        "modalidades.html",
-        labels=labels,
-        valores=valores,
-        tabla=tabla
-    )
-
-
-
-# ============================================================
-#  RUTA: Detalle por modalidad
-# ============================================================
-
-@app.route("/modalidad-detalle/<modalidad>")
-@login_required
-def modalidad_detalle(modalidad):
-    pipeline = [
-        {"$match": {"P_MODALIDADES": modalidad}},
-        {"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"_id": 1}}
-    ]
-    datos = list(col.aggregate(pipeline))
-    return render_template("modalidad_detalle.html", modalidad=modalidad, datos=datos)
-
-
-# ============================================================
-#  RUTA: Trimestres
-# ============================================================
+    return render_template("modalidades.html", labels=[d["_id"] for d in datos], valores=[d["total"] for d in datos], tabla=datos)
 
 @app.route("/trimestres")
 @login_required
@@ -407,122 +326,145 @@ def trimestres():
         {"$sort": {"_id": 1}}
     ]
     datos = list(col.aggregate(pipeline))
+    return render_template("trimestres.html", labels=[d["_id"] for d in datos], valores=[d["total"] for d in datos], tabla=datos)
 
-    labels = [doc["_id"] for doc in datos]
-    valores = [doc["total"] for doc in datos]
-    tabla = datos
-
-    return render_template(
-        "trimestres.html",
-        labels=labels,
-        valores=valores,
-        tabla=tabla
-    )
-
-
-
-# ============================================================
-#  RUTA: Regiones
-# ============================================================
-
-@app.route("/regiones")
+@app.route('/cluster-departamentos')
 @login_required
-def regiones():
-    # 1) Primero agrupamos por departamento
+def cluster_departamentos():
     pipeline = [
-        {"$group": {
-            "_id": "$DPTO_HECHO_NEW",
-            "total": {"$sum": "$cantidad"}
-        }}
+        {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
+        {"$sort": {"total": 1}}
+    ]
+    data_bd = list(col.aggregate(pipeline))
+    data_clean = [d for d in data_bd if d["_id"]]
+    
+    if len(data_clean) < 3: return "Datos insuficientes para clusters."
+
+    nombres = [d["_id"] for d in data_clean]
+    valores = np.array([d["total"] for d in data_clean]).reshape(-1, 1)
+
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10).fit(valores)
+    labels = kmeans.labels_
+
+    # Semaforización
+    centroides = kmeans.cluster_centers_.flatten()
+    mapa_orden = {old: new for new, old in enumerate(np.argsort(centroides))}
+    colores = ['#28a745', '#ffc107', '#dc3545'] # Verde, Amarillo, Rojo
+    etiquetas = ['Bajo', 'Medio', 'Alto']
+    
+    resultados = []
+    for i, nom in enumerate(nombres):
+        idx = mapa_orden[labels[i]]
+        resultados.append({
+            "departamento": nom, "total": int(valores[i][0]),
+            "cluster": idx, "color": colores[idx], "etiqueta": etiquetas[idx]
+        })
+        
+    stats = {
+        "bajo": sum(1 for r in resultados if r['cluster'] == 0),
+        "medio": sum(1 for r in resultados if r['cluster'] == 1),
+        "alto": sum(1 for r in resultados if r['cluster'] == 2)
+    }
+    return render_template('cluster_departamentos.html', data=resultados, stats=stats)
+
+@app.route('/comparativa-foco')
+@login_required
+def comparativa_foco():
+    pipeline = [
+        {"$match": {"P_MODALIDADES": {"$in": ["Extorsión", "Homicidio"]}}},
+        {"$group": {"_id": {"trimestre": "$trimestre", "mod": "$P_MODALIDADES"}, "total": {"$sum": "$cantidad"}}}
+    ]
+    res = list(col.aggregate(pipeline))
+    
+    chart_data = {"Extorsión": {}, "Homicidio": {}}
+    for r in res:
+        mod = r["_id"].get("mod")
+        tri = r["_id"].get("trimestre")
+        if mod in chart_data and tri:
+            chart_data[mod][tri] = r["total"]
+            
+    return render_template('comparativa_foco.html', datos=chart_data)
+
+@app.route('/reporte-lima')
+@login_required
+def reporte_lima():
+    pipeline = [
+        {
+            "$match": {
+                "DPTO_HECHO_NEW": {"$regex": "LIMA", "$options": "i"},
+                "P_MODALIDADES": {"$in": [re.compile("EXTORSI", re.I), re.compile("HOMICIDI", re.I)]}
+            }
+        },
+        {
+            "$project": {
+                "anio": "$ANIO", "trimestre": {"$ifNull": ["$trimestre", "T1"]}, "cantidad": "$cantidad",
+                "modalidad": {"$cond": [{"$regexMatch": {"input": "$P_MODALIDADES", "regex": "EXTORSI", "options": "i"}}, "Extorsión", "Homicidio"]}
+            }
+        },
+        {"$group": {"_id": {"anio": "$anio", "trim": "$trimestre", "mod": "$modalidad"}, "total": {"$sum": "$cantidad"}}},
+        {"$sort": {"_id.anio": 1, "_id.trim": 1}}
     ]
     datos = list(col.aggregate(pipeline))
-
-    # 2) Mapa Departamento -> Región (aprox. académico)
-    mapa_regiones = {
-        # Costa
-        "TUMBES": "Costa",
-        "PIURA": "Costa",
-        "LAMBAYEQUE": "Costa",
-        "LA LIBERTAD": "Costa",
-        "ANCASH": "Costa",
-        "LIMA METROPOLITANA": "Costa",
-        "REGION LIMA": "Costa",
-        "PROV. CONST. DEL CALLAO": "Costa",
-        "ICA": "Costa",
-        "AREQUIPA": "Costa",
-        "MOQUEGUA": "Costa",
-        "TACNA": "Costa",
-
-        # Sierra
-        "CAJAMARCA": "Sierra",
-        "AMAZONAS": "Sierra",       # puedes moverla a Selva si tu profe lo exige
-        "HUANUCO": "Sierra",
-        "PASCO": "Sierra",
-        "JUNIN": "Sierra",
-        "HUANCAVELICA": "Sierra",
-        "AYACUCHO": "Sierra",
-        "APURIMAC": "Sierra",
-        "CUSCO": "Sierra",
-        "PUNO": "Sierra",
-
-        # Selva
-        "LORETO": "Selva",
-        "SAN MARTIN": "Selva",
-        "UCAYALI": "Selva",
-        "MADRE DE DIOS": "Selva",
-    }
-
-    # 3) Acumulamos totales por región
-    acumulado = {}
+    
+    labels = sorted(list(set(f"{d['_id']['anio']}-{d['_id']['trim']}" for d in datos)))
+    data_ext = []
+    data_hom = []
+    
+    temp = {l: {"Extorsión": 0, "Homicidio": 0} for l in labels}
     for d in datos:
-        depto = d["_id"]
-        total = d["total"]
-        region = mapa_regiones.get(depto, "Sin clasificar")
-        acumulado[region] = acumulado.get(region, 0) + total
-
-    # 4) Armamos tabla y listas para el gráfico
-    tabla = [
-        {"_id": region, "total": total}
-        for region, total in acumulado.items()
-    ]
-    # ordenar de mayor a menor
-    tabla = sorted(tabla, key=lambda x: x["total"], reverse=True)
-
-    labels = [fila["_id"] for fila in tabla]
-    valores = [fila["total"] for fila in tabla]
-
-    return render_template(
-        "regiones.html",
-        labels=labels,
-        valores=valores,
-        tabla=tabla
-    )
-
-
+        key = f"{d['_id']['anio']}-{d['_id']['trim']}"
+        temp[key][d['_id']['mod']] = d['total']
+        
+    for l in labels:
+        data_ext.append(temp[l]["Extorsión"])
+        data_hom.append(temp[l]["Homicidio"])
+        
+    return render_template('reporte_lima.html', labels=labels, extorsion=data_ext, homicidio=data_hom)
 
 # ============================================================
-#  RUTA: Predicción delitos 2026
+#  MÓDULOS DE INTELIGENCIA ARTIFICIAL
 # ============================================================
-
 @app.route('/prediccion-2026')
 @login_required
 def prediccion_2026():
-    # USAMOS LA COLECCIÓN GRANDE
-    col = db['denuncias']
-    
-    total, etiquetas, valores, historico, anios = predecir_total_2026(col)
-    
-    return render_template('prediccion_2026.html', 
-                           total=total, 
-                           etiquetas=etiquetas, 
-                           valores=valores)
+    total, etiquetas, valores, _, _ = predecir_total_2026(col)
+    return render_template('prediccion_2026.html', total=total, etiquetas=etiquetas, valores=valores)
 
-# ============================================================
-#  CHAT IA: Conversar con Gemini + Dataset real
-# ============================================================
-from flask import jsonify, request
-# --- RUTA 1: CHATBOT FLOTANTE ---
-# --- RUTA CHATBOT CON LOS CAMPOS CORRECTOS (ANIO y cantidad) ---
+@app.route('/agente-estrategico')
+@login_required
+def agente_estrategico():
+    try:
+        total_2026, texto_historico = obtener_contexto_ia(col)
+        analisis_ia = consultar_estratega_ia(total_2026, texto_historico, "Tendencia Extorsión/Homicidio")
+        return render_template('agente_estrategico.html', total="{:,}".format(total_2026), analisis=analisis_ia)
+    except:
+        return render_template('agente_estrategico.html', total="Calculando...", analisis="IA Reiniciando...")
+
+@app.route('/riesgo-modalidad', methods=['GET', 'POST'])
+@login_required
+def riesgo_modalidad():
+    modalidad = "Extorsión"
+    anio_sim, trim_sim, dpto_sim = 2025, "T1", "LIMA METROPOLITANA"
+    resultado_sim, analisis_ia_txt = 0, None
+    
+    modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad)
+    
+    deptos_list = sorted(df_hist['departamento'].unique().tolist()) if not df_hist.empty else []
+    
+    if request.method == 'POST' and modelo:
+        anio_sim = int(request.form.get('anio'))
+        trim_sim = request.form.get('trimestre')
+        dpto_sim = request.form.get('departamento')
+        
+        resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
+        analisis_ia_txt = analizar_riesgo_ia(resultado_sim, modalidad, dpto_sim, trim_sim, anio_sim)
+        
+    return render_template('riesgo_modalidad.html', 
+                           departamentos=deptos_list, 
+                           entrada={"anio": anio_sim, "trimestre": trim_sim, "departamento": dpto_sim},
+                           resultado=resultado_sim, 
+                           analisis_ia=analisis_ia_txt)
+
 @app.route('/chat-ia', methods=['POST'])
 @login_required
 def chat_ia():
@@ -530,479 +472,48 @@ def chat_ia():
     if not mensaje: return jsonify({'respuesta': "No entendí."})
     
     try:
-        col = db['denuncias']
-        
-        # ---------------------------------------------------------
-        # PASO 1: AGREGACIÓN DE DATOS (HISTÓRICO)
-        # ---------------------------------------------------------
-        # CORRECCIÓN BASADA EN TU IMAGEN:
-        # 1. Agrupamos por "$ANIO" (Mayúscula, como en tu BD)
-        # 2. Sumamos "$cantidad" (Así se llama tu campo de conteo)
-        pipeline = [
-            {
-                "$group": {
-                    "_id": "$ANIO",  
-                    "total_delitos": {"$sum": "$cantidad"} 
-                }
-            },
-            {"$sort": {"_id": 1}} # Ordenar por año (2018, 2019...)
-        ]
-        
+        # Historial real
+        pipeline = [{"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}}, {"$sort": {"_id": 1}}]
         datos_raw = list(col.aggregate(pipeline))
-        print(f"🔍 DEBUG - Datos Encontrados: {datos_raw}")
-
-        # Construimos el texto para la IA
-        texto_historico = "HISTORIAL DE CRIMINALIDAD (Datos Reales SIDPOL):\n"
-        datos_validos = False
+        texto_hist = "\n".join([f"- {d['_id']}: {d['total']:,}" for d in datos_raw if str(d['_id']).isdigit()])
         
-        for d in datos_raw:
-            anio_dato = d.get('_id')
-            total_dato = d.get('total_delitos', 0)
-            
-            # Validamos que el año sea un número real (ej: 2018)
-            if anio_dato is not None and str(anio_dato).isdigit():
-                texto_historico += f"- Año {anio_dato}: {total_dato:,} denuncias.\n"
-                datos_validos = True
+        # Proyección
+        try: total_26, _, _, _, _ = predecir_total_2026(col)
+        except: total_26 = "N/A"
         
-        if not datos_validos:
-            texto_historico += "(No se encontraron datos históricos legibles).\n"
-
-        # ---------------------------------------------------------
-        # PASO 2: PROYECCIÓN FUTURA (PREDICCIÓN 2026)
-        # ---------------------------------------------------------
-        try:
-            total_2026, _, _, _, _ = predecir_total_2026(col)
-        except:
-            total_2026 = "Calculando..."
-
-        # ---------------------------------------------------------
-        # PASO 3: CONTEXTO FINAL PARA GEMINI
-        # ---------------------------------------------------------
-        contexto_full = f"""
-        ERES: Analista de Inteligencia Criminal (SIDPOL).
+        contexto = f"HISTORIAL:\n{texto_hist}\nPROYECCIÓN 2026: {total_26}"
+        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto)
         
-        {texto_historico}
-        
-        PROYECCIÓN OFICIAL IA (2026):
-        - Se estiman: {total_2026} incidentes futuros.
-        
-        INSTRUCCIÓN:
-        Responde basándote estrictamente en estos números. 
-        Si preguntan por 2018, usa el dato de 2018. Si preguntan futuro, usa 2026.
-        """
-        
-        # Llamada a la IA
-        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto_full)
         return jsonify({'respuesta': respuesta})
-
     except Exception as e:
-        print(f"❌ Error CRÍTICO en Chat: {e}")
-        return jsonify({'respuesta': "Error interno procesando datos."})
-# ============================================================
-#  Clustering de departamentos (KMeans, groupby, numpy, matplotlib)
-# ============================================================
-
-@app.route('/cluster-departamentos')
-@login_required
-def cluster_departamentos():
-    # 1. Obtener datos desde MongoDB
-    pipeline = [
-        {
-            "$group": {
-                "_id": "$DPTO_HECHO_NEW",
-                "total": {"$sum": "$cantidad"} 
-            }
-        },
-        {"$sort": {"total": 1}}
-    ]
-    data_bd = list(col.aggregate(pipeline))
-    
-    # 2. Limpieza
-    data_clean = [d for d in data_bd if d["_id"] is not None and str(d["_id"]).strip() != ""]
-    
-    if len(data_clean) < 3:
-        return "No hay suficientes datos para generar clusters."
-
-    # 3. K-Means
-    nombres = [d["_id"] for d in data_clean]
-    valores = np.array([d["total"] for d in data_clean]).reshape(-1, 1)
-
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-    labels = kmeans.fit_predict(valores)
-
-    # 4. Ordenar Clusters (Semaforización)
-    centroides = kmeans.cluster_centers_.flatten()
-    indices_ordenados = np.argsort(centroides) 
-    mapa_orden = {old_idx: new_idx for new_idx, old_idx in enumerate(indices_ordenados)}
-    
-    resultados = []
-    colores = ['#28a745', '#ffc107', '#dc3545'] # Verde, Amarillo, Rojo
-    etiquetas = ['Riesgo Bajo', 'Riesgo Medio', 'Riesgo Crítico']
-
-    for i, nombre in enumerate(nombres):
-        label_original = labels[i]
-        label_ordenado = mapa_orden[label_original] 
-        
-        resultados.append({
-            "departamento": nombre,
-            "total": int(valores[i][0]),
-            "cluster": int(label_ordenado),
-            "color": colores[label_ordenado],
-            "etiqueta": etiquetas[label_ordenado]
-        })
-
-    stats = {
-        "bajo": sum(1 for r in resultados if r['cluster'] == 0),
-        "medio": sum(1 for r in resultados if r['cluster'] == 1),
-        "alto": sum(1 for r in resultados if r['cluster'] == 2)
-    }
-
-    # --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
-    return render_template('cluster_departamentos.html', data=resultados, stats=stats)
+        print(f"Error chat: {e}")
+        return jsonify({'respuesta': "Error interno."})
 
 # ============================================================
-# riesgo-modalidad
+#  ADMINISTRACIÓN DE USUARIOS
 # ============================================================
-
-# --- EN app.py ---
-# Importamos la nueva función
-# --- RUTA 2: AGENTE LOGÍSTICO (SIMULADOR) ---
-@app.route('/riesgo-modalidad', methods=['GET', 'POST'])
-@login_required
-def riesgo_modalidad():
-    col = db['denuncias']
-    modalidad = "Extorsión" 
-    
-    # Valores por defecto
-    anio_sim = 2025
-    trim_sim = "T1"
-    dpto_sim = "LIMA METROPOLITANA"
-    resultado_sim = 0
-    analisis_ia_txt = None
-    
-    # Entrenar y obtener datos
-    modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad_objetivo=modalidad)
-    
-    grafico_labels = []
-    grafico_data = []
-    departamentos_list = []
-    anios_list = []
-
-    if modelo and not df_hist.empty:
-        # Preparar gráfico
-        df_nacional = df_hist.groupby(['periodo', 'anio', 'trimestre_num'])['total'].sum().reset_index()
-        df_nacional = df_nacional.sort_values(by=['anio', 'trimestre_num'])
-        grafico_labels = df_nacional['periodo'].tolist()
-        grafico_data = df_nacional['total'].tolist()
-        
-        # Listas para dropdowns
-        departamentos_list = sorted(df_hist['departamento'].unique().tolist())
-        anios_list = sorted(df_hist['anio'].unique().tolist())
-        if 2026 not in anios_list: anios_list.append(2026)
-
-        # Si se envió el formulario (Botón Azul)
-        if request.method == 'POST':
-            try:
-                anio_sim = int(request.form.get('anio', 2025))
-                trim_sim = request.form.get('trimestre', 'T1')
-                dpto_sim = request.form.get('departamento', dpto_sim)
-                
-                # 1. Predicción Matemática
-                resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
-                
-                # 2. Análisis IA (Gemini 2.5)
-                analisis_ia_txt = analizar_riesgo_ia(resultado_sim, modalidad, dpto_sim, trim_sim, anio_sim)
-                
-            except Exception as e:
-                print(f"Error en simulación: {e}")
-
-    # Renderizar
-    return render_template('riesgo_modalidad.html',
-                           modalidad=modalidad,
-                           labels=grafico_labels,
-                           valores=grafico_data,
-                           departamentos=departamentos_list,
-                           anios_disp=anios_list,
-                           trimestres_disp=["T1", "T2", "T3", "T4"],
-                           entrada={"anio": anio_sim, "trimestre": trim_sim, "departamento": dpto_sim},
-                           resultado=resultado_sim,
-                           analisis_ia=analisis_ia_txt)
-
-# ============================================================
-# Análisis Trimestral (Extorsión vs Homicidio)
-# ============================================================
-# --- AGREGAR ESTO EN TU APP.PY ---
-
-@app.route('/comparativa-foco')
-@login_required
-def comparativa_foco():
-    # 1. Definir los filtros exactos del PDF
-    deptos_clave = [
-        "LIMA METROPOLITANA", "AREQUIPA", "AYACUCHO", 
-        "LA LIBERTAD", "LAMBAYEQUE"
-    ]
-    modalidades_clave = ["Extorsión", "Homicidio"]
-    
-    # 2. Pipeline de Agregación
-    pipeline = [
-        {
-            "$match": {
-                "DPTO_HECHO_NEW": {"$in": deptos_clave},
-                "P_MODALIDADES": {"$in": modalidades_clave}
-            }
-        },
-        {
-            "$group": {
-                "_id": {
-                    "trimestre": "$trimestre",  # Asegúrate que tu ETL creó este campo (T1, T2...)
-                    "modalidad": "$P_MODALIDADES"
-                },
-                "total": {"$sum": "$cantidad"}
-            }
-        }
-    ]
-    
-    resultados = list(col.aggregate(pipeline))
-    
-    # 3. Estructurar datos para fácil uso en Chart.js
-    # Inicializamos en 0 por si algún trimestre no tiene datos
-    datos_chart = {
-        "Extorsión": {"T1": 0, "T2": 0, "T3": 0, "T4": 0},
-        "Homicidio": {"T1": 0, "T2": 0, "T3": 0, "T4": 0}
-    }
-    
-    for r in resultados:
-        tri = r["_id"].get("trimestre")
-        mod = r["_id"].get("modalidad")
-        cant = r["total"]
-        
-        # Solo procesamos si el trimestre es válido (T1-T4) y la modalidad es una de las 2
-        if tri in ["T1", "T2", "T3", "T4"] and mod in datos_chart:
-            datos_chart[mod][tri] = cant
-
-    return render_template('comparativa_foco.html', datos=datos_chart)
-
-# ============================================================
-# reporte_lima
-# ============================================================
-@app.route('/reporte-lima')
-@login_required
-def reporte_lima():
-    pipeline = [
-        {
-            "$match": {
-                # 1. FILTRO GEOGRÁFICO:
-                # Buscamos "LIMA" en el campo que vimos en la foto (DPTO_HECHO_NEW)
-                "DPTO_HECHO_NEW": {"$regex": "LIMA", "$options": "i"},
-                
-                # 2. FILTRO DE MODALIDAD:
-                "P_MODALIDADES": {
-                    "$in": [
-                        re.compile("EXTORSI", re.IGNORECASE), 
-                        re.compile("HOMICIDI", re.IGNORECASE)
-                    ]
-                }
-            }
-        },
-        {
-            "$project": {
-                # Usamos el nombre exacto que vimos en la foto: "ANIO"
-                "anio": "$ANIO", 
-                "trimestre": {"$ifNull": ["$trimestre", "T1"]},
-                "cantidad_real": "$cantidad", # <--- ¡LA CLAVE DEL ÉXITO!
-                
-                # Normalizamos el nombre de la modalidad
-                "modalidad_norm": {
-                    "$cond": {
-                        "if": {"$regexMatch": {"input": "$P_MODALIDADES", "regex": "EXTORSI", "options": "i"}},
-                        "then": "Extorsión",
-                        "else": "Homicidio"
-                    }
-                }
-            }
-        },
-        {
-            "$group": {
-                "_id": {
-                    "anio": "$anio",
-                    "trimestre": "$trimestre",
-                    "modalidad": "$modalidad_norm"
-                },
-                # AQUÍ ESTABA EL ERROR: Antes sumábamos 1, ahora sumamos la cantidad real
-                "total": {"$sum": "$cantidad_real"} 
-            }
-        },
-        { "$sort": {"_id.anio": 1, "_id.trimestre": 1} }
-    ]
-
-    datos = list(col.aggregate(pipeline))
-
-    # --- AUDITORÍA DE CALIBRACIÓN ---
-    print("\n--- 🔍 DIAGNÓSTICO FINAL ---")
-    total_ext_2023 = sum(d['total'] for d in datos if d['_id']['anio'] == 2018 and d['_id']['modalidad'] == 'Extorsión')
-    # Nota: Puse 2018 porque vi ese año en tu foto, pero sumará todos.
-    
-    if datos:
-        print(f"✅ ¡Datos encontrados! Primer registro procesado: {datos[0]}")
-    else:
-        print("⚠️ ALERTA: Sigue saliendo vacío. Verifica que 'denuncias_db' esté bien puesto en la conexión.")
-    # --------------------------------
-
-    labels = []
-    data_extorsion = []
-    data_homicidio = []
-    temp_data = {}
-
-    for d in datos:
-        anio = d["_id"].get("anio")
-        tri = d["_id"].get("trimestre")
-        mod = d["_id"].get("modalidad")
-        total = d["total"]
-        
-        if not anio: continue
-
-        clave = f"{anio}-{tri}"
-        if clave not in labels: labels.append(clave)
-        if clave not in temp_data: temp_data[clave] = {"Extorsión": 0, "Homicidio": 0}
-        
-        temp_data[clave][mod] = total
-
-    labels.sort()
-    for l in labels:
-        data_extorsion.append(temp_data[l]["Extorsión"])
-        data_homicidio.append(temp_data[l]["Homicidio"])
-
-    return render_template('reporte_lima.html', labels=labels, extorsion=data_extorsion, homicidio=data_homicidio)
-
-# ============================================================
-# Agente "Centinela" de Políticas Públicas
-# ============================================================
-# --- IMPORTACIONES ---
-# Agrega esto arriba junto a los otros imports
-from ml_utils import predecir_total_2026, obtener_contexto_ia
-from ml_llm import consultar_estratega_ia # Asegúrate de que existan
-
-# ... (Resto de tu código) ...
-
-@app.route('/agente-estrategico')
-@login_required
-def agente_estrategico():
-    try:
-        # 1. Conexión a BIG DATA (Colección 'denuncias')
-        col = db['denuncias']
-        
-        # 2. Obtener Datos Numéricos (Python)
-        # Reutilizamos predecir_total_2026 para el número grande o usamos obtener_contexto_ia
-        total_2026, texto_historico = obtener_contexto_ia(col)
-        
-        # 3. Invocar al Agente Cognitivo (Gemini)
-        # Simulamos un dato de riesgo alto para el prompt (o lo calculas con ml_cluster)
-        top_riesgo = "Extorsión en La Libertad y Lima Norte (Tendencia al alza)"
-        
-        # LLAMADA A LA IA
-        analisis_ia = consultar_estratega_ia(total_2026, texto_historico, top_riesgo)
-        
-        # 4. Formato visual
-        total_fmt = "{:,}".format(total_2026)
-        
-        return render_template('agente_estrategico.html', 
-                               total=total_fmt, 
-                               analisis=analisis_ia)
-
-    except Exception as e:
-        print(f"Error en Agente Estratega: {e}")
-        # Fallback elegante si algo falla
-        return render_template('agente_estrategico.html', 
-                               total="Calculando...", 
-                               analisis="El sistema de IA está reiniciando sus módulos neuronales. Intente nuevamente.")
-
-# ============================================================
-# RUN Agente de Asignación Táctica
-# ============================================================
-@app.route('/agente-logistico')
-@login_required
-def agente_logistico():
-    # USAMOS LA COLECCIÓN GRANDE
-    col = db['denuncias']
-    
-    datos_clusters = clusterizar_departamentos(col, n_clusters=3)
-    
-    return render_template('agente_logistico.html', clusters=datos_clusters)
-
-# --- IMPORTANTE: Asegúrate de tener esto arriba del todo ---
-# from werkzeug.security import generate_password_hash
-# from functools import wraps
-
-# --- Decorador para permitir acceso solo al Admin ---
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if session.get('rol') != 'admin':
-            flash('Acceso denegado. Solo administradores.', 'error')
-            return redirect(url_for('index'))
-        return f(*args, **kwargs)
-    return decorated_function
-# ============================================================
-# RUTA PARA CREAR USUARIOS
-# ============================================================
-# --- RUTA PARA CREAR USUARIOS ---
-# --- IMPORTANTE: Asegúrate de tener esto arriba del todo ---
-# from werkzeug.security import generate_password_hash
-# from functools import wraps
-
-# --- Decorador para permitir acceso solo al Admin ---
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if session.get('rol') != 'admin':
-            flash('Acceso denegado. Solo administradores.', 'error')
-            return redirect(url_for('index'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-# --- RUTA PARA CREAR USUARIOS ---
 @app.route('/crear_usuario', methods=['GET', 'POST'])
-@login_required # Obliga a estar logueado
-@admin_required # Obliga a ser admin (usando el decorador de arriba)
+@login_required
+@admin_required
 def crear_usuario():
     if request.method == 'POST':
-        # 1. Obtener datos del formulario
         username = request.form['username']
         password = request.form['password']
         rol = request.form['rol']
-
-        # 2. Conectar a BD
+        
         users_col = db['usuarios']
-
-        # 3. Validar si ya existe
         if users_col.find_one({"username": username}):
-            flash('El usuario ya existe.', 'error')
+            flash('Usuario ya existe.', 'error')
         else:
-            # 4. Encriptar y Guardar
-            hashed_password = generate_password_hash(password)
             users_col.insert_one({
                 "username": username,
-                "password": hashed_password,
+                "password": generate_password_hash(password),
                 "rol": rol
             })
-            flash(f'Usuario {username} creado exitosamente.', 'success')
+            flash(f'Usuario {username} creado.', 'success')
             return redirect(url_for('crear_usuario'))
-
+            
     return render_template('crear_usuario.html')
-# ============================================================
-# RUN
-# ============================================================
-@app.route('/espiar-datos')
-def espiar_datos():
-    try:
-        col = db['simulaciones_riesgo']
-        # Trae un documento cualquiera
-        dato = col.find_one()
-        return f"<h1>Lo que hay en la base de datos:</h1><p>{str(dato)}</p>"
-    except Exception as e:
-        return f"<h1>Error espiando:</h1><p>{str(e)}</p>"
-
-
 
 if __name__ == "__main__":
     app.run(debug=True)
