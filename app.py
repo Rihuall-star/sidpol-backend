@@ -226,30 +226,61 @@ def resumen_anual():
 @app.route('/departamentos')
 @login_required
 def departamentos():
-    data_raw = ranking_departamentos(col, n=30)
+    # Traemos TODOS los departamentos, no solo 30
+    data_raw = ranking_departamentos(col, n=50) 
     
-    # Mapeo simplificado para GeoChart (Ejemplo)
+    # DICCIONARIO MAESTRO: Base de datos -> Código Highcharts (pe-xx)
     map_mapping = {
-        "AMAZONAS": "pe-am", "LIMA METROPOLITANA": "pe-li", "AREQUIPA": "pe-ar",
-        "LA LIBERTAD": "pe-ll", "PIURA": "pe-pi", "CUSCO": "pe-cs", "JUNIN": "pe-ju",
-        "CALLAO": "pe-cl", "LAMBAYEQUE": "pe-lb", "REGION LIMA": "pe-lr"
-        # ... agrega el resto si faltan
+        "AMAZONAS": "pe-am",
+        "ANCASH": "pe-an",
+        "APURIMAC": "pe-ap",
+        "AREQUIPA": "pe-ar",
+        "AYACUCHO": "pe-ay",
+        "CAJAMARCA": "pe-cj",
+        "CALLAO": "pe-cl",
+        "PROV. CONST. DEL CALLAO": "pe-cl",  # Caso especial Callao
+        "CUSCO": "pe-cs",
+        "HUANCAVELICA": "pe-hv",
+        "HUANUCO": "pe-hc",
+        "ICA": "pe-ic",
+        "JUNIN": "pe-ju",
+        "LA LIBERTAD": "pe-ll",
+        "LAMBAYEQUE": "pe-lb",
+        "LIMA METROPOLITANA": "pe-li",       # Lima Metro
+        "REGION LIMA": "pe-lr",              # Lima Provincias
+        "LORETO": "pe-lo",
+        "MADRE DE DIOS": "pe-md",
+        "MOQUEGUA": "pe-mq",
+        "PASCO": "pe-pa",
+        "PIURA": "pe-pi",
+        "PUNO": "pe-pu",
+        "SAN MARTIN": "pe-sm",
+        "TACNA": "pe-ta",
+        "TUMBES": "pe-tu",
+        "UCAYALI": "pe-uc"
     }
 
     data_mapa = []
+    # Top 5 para la tabla lateral
     top_5 = data_raw[:5]
 
     for d in data_raw:
+        # Limpieza CRÍTICA: Convertir a mayúsculas y quitar espacios extra
         nombre_bd = str(d["_id"]).strip().upper()
+        
+        # 1. Búsqueda exacta
         code = map_mapping.get(nombre_bd)
         
-        # Fallback inteligente
+        # 2. Búsqueda de respaldo (Por si acaso)
         if not code:
             if "LIMA" in nombre_bd: code = "pe-li"
             elif "CALLAO" in nombre_bd: code = "pe-cl"
             
         if code:
             data_mapa.append([code, d["total"]])
+        else:
+            # Esto imprimirá en la consola de Render qué departamento está fallando
+            print(f"⚠️ No mapeado: {nombre_bd}")
 
     return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
 
@@ -313,21 +344,57 @@ def regiones():
     pipeline = [{"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}}]
     datos = list(col.aggregate(pipeline))
     
+    # CLASIFICACIÓN COMPLETA (Costa, Sierra, Selva)
     mapa_regiones = {
-        "LIMA METROPOLITANA": "Costa", "CALLAO": "Costa", "PIURA": "Costa",
-        "CUSCO": "Sierra", "PUNO": "Sierra", "JUNIN": "Sierra",
-        "LORETO": "Selva", "UCAYALI": "Selva"
+        # COSTA
+        "TUMBES": "Costa", "PIURA": "Costa", "LAMBAYEQUE": "Costa", 
+        "LA LIBERTAD": "Costa", "ANCASH": "Costa", "LIMA METROPOLITANA": "Costa", 
+        "REGION LIMA": "Costa", "PROV. CONST. DEL CALLAO": "Costa", "CALLAO": "Costa",
+        "ICA": "Costa", "AREQUIPA": "Costa", "MOQUEGUA": "Costa", "TACNA": "Costa",
+
+        # SIERRA
+        "CAJAMARCA": "Sierra", "HUANUCO": "Sierra", "PASCO": "Sierra", 
+        "JUNIN": "Sierra", "HUANCAVELICA": "Sierra", "AYACUCHO": "Sierra", 
+        "APURIMAC": "Sierra", "CUSCO": "Sierra", "PUNO": "Sierra",
+
+        # SELVA
+        "AMAZONAS": "Selva", "LORETO": "Selva", "SAN MARTIN": "Selva", 
+        "UCAYALI": "Selva", "MADRE DE DIOS": "Selva"
     }
     
-    acumulado = {}
+    acumulado = {"Costa": 0, "Sierra": 0, "Selva": 0}
+    otros_log = [] # Para detectar errores
+
     for d in datos:
-        region = mapa_regiones.get(d["_id"], "Otras")
-        acumulado[region] = acumulado.get(region, 0) + d["total"]
+        # Limpieza CRÍTICA
+        nombre_bd = str(d["_id"]).strip().upper()
         
-    tabla = [{"_id": k, "total": v} for k, v in acumulado.items()]
+        region = mapa_regiones.get(nombre_bd)
+        
+        if region:
+            acumulado[region] += d["total"]
+        else:
+            # Si no encuentra región, lo intentamos clasificar manualmente o va a Otros
+            if nombre_bd == "LIMA": acumulado["Costa"] += d["total"]
+            else: 
+                # Solo sumamos a "Otras" si es un dato basura o desconocido
+                # print(f"Sin Región: {nombre_bd}") # Descomentar para depurar
+                pass 
+        
+    # Convertir a lista para el gráfico
+    tabla = [
+        {"_id": "Costa", "total": acumulado["Costa"]},
+        {"_id": "Sierra", "total": acumulado["Sierra"]},
+        {"_id": "Selva", "total": acumulado["Selva"]}
+    ]
+    
+    # Ordenar
     tabla = sorted(tabla, key=lambda x: x["total"], reverse=True)
     
-    return render_template("regiones.html", labels=[x["_id"] for x in tabla], valores=[x["total"] for x in tabla], tabla=tabla)
+    return render_template("regiones.html", 
+                           labels=[x["_id"] for x in tabla], 
+                           valores=[x["total"] for x in tabla], 
+                           tabla=tabla)
 
 # ============================================================
 #  RUTAS DE ANÁLISIS TÉCNICO
