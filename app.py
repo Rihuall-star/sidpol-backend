@@ -471,23 +471,52 @@ def riesgo_modalidad():
     anio_sim, trim_sim, dpto_sim = 2025, "T1", "LIMA METROPOLITANA"
     resultado_sim, analisis_ia_txt = 0, None
     
+    # 1. INICIALIZAR VARIABLES DE GRÁFICO (¡Esto faltaba!)
+    grafico_labels = []
+    grafico_data = []
+    deptos_list = []
+    anios_list = []
+
+    # 2. Entrenar modelo y obtener datos históricos
     modelo, df_hist, le_dpto = entrenar_modelo_riesgo(col, modalidad)
     
-    deptos_list = sorted(df_hist['departamento'].unique().tolist()) if not df_hist.empty else []
-    
-    if request.method == 'POST' and modelo:
-        anio_sim = int(request.form.get('anio'))
-        trim_sim = request.form.get('trimestre')
-        dpto_sim = request.form.get('departamento')
+    # 3. Si hay datos históricos, llenamos las listas del gráfico
+    if not df_hist.empty:
+        # Agrupamos datos para el gráfico de línea (Tendencia Nacional)
+        df_nacional = df_hist.groupby(['periodo', 'anio', 'trimestre_num'])['total'].sum().reset_index()
+        df_nacional = df_nacional.sort_values(by=['anio', 'trimestre_num'])
         
-        resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
-        analisis_ia_txt = analizar_riesgo_ia(resultado_sim, modalidad, dpto_sim, trim_sim, anio_sim)
+        grafico_labels = df_nacional['periodo'].tolist()
+        grafico_data = df_nacional['total'].tolist()
+        
+        deptos_list = sorted(df_hist['departamento'].unique().tolist())
+        anios_list = sorted(df_hist['anio'].unique().tolist())
+        if 2026 not in anios_list: anios_list.append(2026)
+    
+    # 4. Procesar Simulación (POST)
+    if request.method == 'POST' and modelo:
+        try:
+            anio_sim = int(request.form.get('anio'))
+            trim_sim = request.form.get('trimestre')
+            dpto_sim = request.form.get('departamento')
+            
+            resultado_sim = predecir_valor_especifico(modelo, le_dpto, anio_sim, trim_sim, dpto_sim)
+            
+            # Solo llamamos a la IA si Gemini no está bloqueado (try/catch interno)
+            analisis_ia_txt = analizar_riesgo_ia(resultado_sim, modalidad, dpto_sim, trim_sim, anio_sim)
+        except Exception as e:
+            print(f"Error en simulación POST: {e}")
         
     return render_template('riesgo_modalidad.html', 
-                           departamentos=deptos_list, 
+                           departamentos=deptos_list,
+                           anios_disp=anios_list,
+                           trimestres_disp=["T1", "T2", "T3", "T4"],
                            entrada={"anio": anio_sim, "trimestre": trim_sim, "departamento": dpto_sim},
                            resultado=resultado_sim, 
-                           analisis_ia=analisis_ia_txt)
+                           analisis_ia=analisis_ia_txt,
+                           # PASAMOS LAS VARIABLES DE GRÁFICO SEGURAS
+                           labels=grafico_labels, 
+                           valores=grafico_data)
 
 @app.route('/chat-ia', methods=['POST'])
 @login_required
