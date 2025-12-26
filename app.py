@@ -226,19 +226,27 @@ def resumen_anual():
 @app.route('/departamentos')
 @login_required
 def departamentos():
-    # Traemos TODOS los departamentos, no solo 30
+    # Traemos 50 para asegurar que vengan todos, incluso los pequeños
     data_raw = ranking_departamentos(col, n=50) 
     
-    # DICCIONARIO MAESTRO: Base de datos -> Código Highcharts (pe-xx)
+    # DICCIONARIO MAESTRO MAPA (Highcharts codes)
     map_mapping = {
+        # --- LAS LIMAS (SOLUCIÓN DEL PROBLEMA) ---
+        "LIMA METROPOLITANA": "pe-li",       # Código 'pe-li': Lima Ciudad (Azul Oscuro)
+        "REGION LIMA": "pe-lr",              # Código 'pe-lr': Lima Provincias (Donut alrededor)
+        "LIMA": "pe-li",                     # Respaldo por si aparece solo "LIMA"
+        
+        # --- EL CALLAO ---
+        "PROV. CONST. DEL CALLAO": "pe-cl",  # Callao tiene su propio código
+        "CALLAO": "pe-cl",
+
+        # --- EL RESTO DEL PERÚ ---
         "AMAZONAS": "pe-am",
         "ANCASH": "pe-an",
         "APURIMAC": "pe-ap",
         "AREQUIPA": "pe-ar",
         "AYACUCHO": "pe-ay",
         "CAJAMARCA": "pe-cj",
-        "CALLAO": "pe-cl",
-        "PROV. CONST. DEL CALLAO": "pe-cl",  # Caso especial Callao
         "CUSCO": "pe-cs",
         "HUANCAVELICA": "pe-hv",
         "HUANUCO": "pe-hc",
@@ -246,8 +254,6 @@ def departamentos():
         "JUNIN": "pe-ju",
         "LA LIBERTAD": "pe-ll",
         "LAMBAYEQUE": "pe-lb",
-        "LIMA METROPOLITANA": "pe-li",       # Lima Metro
-        "REGION LIMA": "pe-lr",              # Lima Provincias
         "LORETO": "pe-lo",
         "MADRE DE DIOS": "pe-md",
         "MOQUEGUA": "pe-mq",
@@ -261,26 +267,20 @@ def departamentos():
     }
 
     data_mapa = []
-    # Top 5 para la tabla lateral
     top_5 = data_raw[:5]
 
     for d in data_raw:
-        # Limpieza CRÍTICA: Convertir a mayúsculas y quitar espacios extra
+        # Limpieza: Mayúsculas y sin espacios a los lados
         nombre_bd = str(d["_id"]).strip().upper()
         
-        # 1. Búsqueda exacta
+        # Mapeo exacto
         code = map_mapping.get(nombre_bd)
         
-        # 2. Búsqueda de respaldo (Por si acaso)
-        if not code:
-            if "LIMA" in nombre_bd: code = "pe-li"
-            elif "CALLAO" in nombre_bd: code = "pe-cl"
-            
         if code:
             data_mapa.append([code, d["total"]])
         else:
-            # Esto imprimirá en la consola de Render qué departamento está fallando
-            print(f"⚠️ No mapeado: {nombre_bd}")
+            # Esto nos ayudará a ver en los logs de Render si algún nombre sigue fallando
+            print(f"⚠️ NO MAPEADO EN MAPA: {nombre_bd}")
 
     return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
 
@@ -434,63 +434,6 @@ def trimestres():
     datos = list(col.aggregate(pipeline))
     return render_template("trimestres.html", labels=[d["_id"] for d in datos], valores=[d["total"] for d in datos], tabla=datos)
 
-@app.route('/departamentos')
-@login_required
-def departamentos():
-    data_raw = ranking_departamentos(col, n=50) 
-    
-    # DICCIONARIO MAESTRO MAPA (Highcharts codes)
-    map_mapping = {
-        # --- LAS LIMAS (CLAVE DEL PROBLEMA) ---
-        "LIMA METROPOLITANA": "pe-li",       # El código 'pe-li' es la zona principal (Azul Oscuro)
-        "REGION LIMA": "pe-lr",              # El código 'pe-lr' es la región externa
-        "LIMA": "pe-li",                     # Por si acaso
-        
-        # --- EL CALLAO ---
-        "PROV. CONST. DEL CALLAO": "pe-cl",
-        "CALLAO": "pe-cl",
-
-        # --- EL RESTO DEL PERÚ ---
-        "AMAZONAS": "pe-am",
-        "ANCASH": "pe-an",
-        "APURIMAC": "pe-ap",
-        "AREQUIPA": "pe-ar",
-        "AYACUCHO": "pe-ay",
-        "CAJAMARCA": "pe-cj",
-        "CUSCO": "pe-cs",
-        "HUANCAVELICA": "pe-hv",
-        "HUANUCO": "pe-hc",
-        "ICA": "pe-ic",
-        "JUNIN": "pe-ju",
-        "LA LIBERTAD": "pe-ll",
-        "LAMBAYEQUE": "pe-lb",
-        "LORETO": "pe-lo",
-        "MADRE DE DIOS": "pe-md",
-        "MOQUEGUA": "pe-mq",
-        "PASCO": "pe-pa",
-        "PIURA": "pe-pi",
-        "PUNO": "pe-pu",
-        "SAN MARTIN": "pe-sm",
-        "TACNA": "pe-ta",
-        "TUMBES": "pe-tu",
-        "UCAYALI": "pe-uc"
-    }
-
-    data_mapa = []
-    top_5 = data_raw[:5]
-
-    for d in data_raw:
-        nombre_bd = str(d["_id"]).strip().upper()
-        
-        # Mapeo exacto
-        code = map_mapping.get(nombre_bd)
-        
-        if code:
-            data_mapa.append([code, d["total"]])
-        else:
-            print(f"⚠️ NO MAPEADO EN MAPA: {nombre_bd}")
-
-    return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
 
 @app.route('/comparativa-foco')
 @login_required
