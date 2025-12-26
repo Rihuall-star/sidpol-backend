@@ -2,182 +2,339 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Analítica de Denuncias{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SIDPOL - Inteligencia Policial{% endblock %}</title>
 
-    <!-- Bootstrap -->
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- CSS personalizado -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <style>
+        :root {
+            --sidpol-dark: #0f172a;       /* Azul Noche */
+            --sidpol-primary: #1e293b;    /* Azul Acero */
+            --sidpol-accent: #38bdf8;     /* Celeste Neón (Tecnología) */
+            --sidpol-success: #10b981;    /* Verde Operativo */
+            --text-light: #f8fafc;
+        }
 
-    <!-- Chart.js -->
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f1f5f9; /* Gris muy claro para el fondo */
+            color: #334155;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* NAVBAR DEGRADADO ESTILO POLICIAL */
+        .navbar-sidpol {
+            background: linear-gradient(135deg, var(--sidpol-dark) 0%, var(--sidpol-primary) 100%);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 0.8rem 1rem;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-light) !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #cbd5e1 !important; /* Gris claro */
+            font-weight: 400;
+            transition: all 0.3s ease;
+            border-radius: 5px;
+            margin: 0 2px;
+        }
+
+        .nav-link:hover {
+            color: var(--sidpol-accent) !important;
+            background-color: rgba(255, 255, 255, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active {
+            color: var(--sidpol-accent) !important;
+            font-weight: 600;
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        /* CONTENEDOR PRINCIPAL */
+        .main-container {
+            flex: 1; /* Empuja el footer hacia abajo */
+            padding: 2rem 0;
+        }
+
+        /* ESTILOS DEL CHATBOT (FLOTANTE Y MODERNO) */
+        #chatbot-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999;
+        }
+
+        #chatbot-trigger {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--sidpol-success), #059669);
+            border: none;
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #chatbot-trigger:hover {
+            transform: scale(1.1);
+            box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.5);
+        }
+
+        .chat-window {
+            display: none; /* Oculto por defecto */
+            position: absolute;
+            bottom: 80px;
+            right: 0;
+            width: 380px;
+            height: 500px;
+            border: none;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .chat-bubble-user {
+            background-color: var(--sidpol-primary);
+            color: white;
+            border-radius: 12px 12px 0 12px;
+            padding: 10px 15px;
+            margin-left: auto;
+            max-width: 80%;
+            font-size: 0.9rem;
+        }
+
+        .chat-bubble-bot {
+            background-color: #f1f5f9;
+            color: #334155;
+            border-left: 4px solid var(--sidpol-success);
+            border-radius: 12px 12px 12px 0;
+            padding: 10px 15px;
+            max-width: 85%;
+            font-size: 0.9rem;
+        }
+
+        /* Animación de tipeo */
+        .typing span {
+            display: inline-block; width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both; margin: 0 1px;
+        }
+        .typing span:nth-child(1) { animation-delay: -0.32s; }
+        .typing span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body class="bg-light">
+<body>
 
-<!-- NAVBAR SUPERIOR -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-sidpol sticky-top">
+        <div class="container-fluid">
+            
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-shield-alt me-2 text-warning"></i> SIDPOL <span class="text-info ms-1" style="font-size: 0.8em; opacity: 0.8;">Intelligence</span>
+            </a>
 
-        <a class="navbar-brand" href="{{ url_for('index') }}">Denuncias Perú</a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                data-bs-target="#navbarNav" aria-controls="navbarNav"
-                aria-expanded="false" aria-label="Menú">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarNav">
-
-            <!-- MENÚ IZQUIERDO -->
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.path == '/' %}active{% endif %}"
-                       href="{{ url_for('index') }}">Inicio</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {% if '/resumen-anual' in request.path %}active{% endif %}"
-                       href="{{ url_for('resumen_anual') }}">Resumen anual</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {% if '/departamentos' in request.path %}active{% endif %}"
-                       href="{{ url_for('departamentos') }}">Departamentos</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {% if '/departamentos-percapita' in request.path %}active{% endif %}"
-                       href="{{ url_for('departamentos_percapita') }}">Deptos per cápita</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {% if '/modalidades' in request.path %}active{% endif %}"
-                       href="{{ url_for('modalidades') }}">Modalidades</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/cluster-departamentos' in request.path %}active{% endif %}"
-                       href="{{ url_for('cluster_departamentos') }}">Clustering</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/riesgo-modalidad' in request.path %}active{% endif %}"
-                       href="{{ url_for('riesgo_modalidad') }}">
-                                                 Riesgo modalidad
-                                                               </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/trimestres' in request.path %}active{% endif %}"
-                       href="{{ url_for('trimestres') }}">Trimestres</a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {% if '/regiones' in request.path %}active{% endif %}"
-                       href="{{ url_for('regiones') }}">Regiones</a>
-                </li>
-                 <li class="nav-item">
-                       <a class="nav-link text-warning" href="{{ url_for('comparativa_foco') }}">
-                             ⭐ Tarea Punto 4
-                    </a>
-                 </li>
-                      <li class="nav-item">
-                         <a class="nav-link text-primary fw-bold" href="/reporte-lima">
-                            📈 Reporte Lima
-                         </a>
-                     </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/prediccion-2026' in request.path %}active{% endif %}"
-                       href="{{ url_for('prediccion_2026') }}">Predicción 2026</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/chat-ia' in request.path %}active{% endif %}"
-                       href="{{ url_for('chat_ia') }}">Chat IA</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link fw-bold text-info" href="/agente-estrategico">
-                             🤖 Agente Estratega
-                     </a>
-                </li>
-                   <li class="nav-item">
-                    <a class="nav-link text-success" href="/agente-logistico">
-                            👮 Agente Logístico
-                     </a>
-                </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="{{ url_for('crear_usuario') }}">
-                      <i class="fas fa-user-plus"></i> Crear Usuarios
-                    </a>
-                  </li>
-                  {% if session.get('user') %}
-    
-                  <li class="nav-item">
-                  <a class="nav-link text-danger" href="{{ url_for('logout') }}">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                   </a>
-                  </li>
-
-                {% endif %}
-            </ul>
-
-            <!-- MENÚ DERECHA: LOGIN / USUARIO -->
-            <ul class="navbar-nav ms-auto">
-                {% if session.get("logged_in") %}
-                    <li class="nav-item">
-                        <span class="nav-link disabled">Hola, {{ session.get("username") }}</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">Salir</a>
-                    </li>
-                {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-                    </li>
-                {% endif %}
-
+            <div class="collapse navbar-collapse" id="navbarNav">
                 
-            </ul>
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        </a>
+                    </li>
 
-        </div>
-    </div>
-</nav>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-pie me-1"></i> Reportes
+                        </a>
+                        <ul class="dropdown-menu shadow border-0">
+                            <li><a class="dropdown-item" href="{{ url_for('resumen_anual') }}">Resumen Anual</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('departamentos') }}">Departamentos</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('modalidades') }}">Modalidades</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/reporte-lima">📈 Reporte Lima</a></li>
+                        </ul>
+                    </li>
 
-<div class="container py-4">
-    {% block content %}
-    {% endblock %}
-</div>
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/prediccion-2026' in request.path %}active{% endif %}" href="{{ url_for('prediccion_2026') }}">
+                            <i class="fas fa-brain me-1"></i> Predicción '26
+                        </a>
+                    </li>
 
-<!-- Bootstrap JS + tu JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+                    <li class="nav-item">
+                        <a class="nav-link text-info fw-bold" href="/agente-estrategico">
+                            <i class="fas fa-user-secret me-1"></i> Estratega IA
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-success fw-bold" href="/riesgo-modalidad">
+                            <i class="fas fa-shield-virus me-1"></i> Simulador
+                        </a>
+                    </li>
+                </ul>
 
-<div id="chatbot-container">
-    <button id="chatbot-trigger" onclick="toggleChat()">
-        <i class="fas fa-comment-dots fa-lg"></i>
-    </button>
-
-    <div id="chatbot-window" class="card shadow-lg">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2">
-            <span><i class="fas fa-robot mr-2"></i>Asistente SIDPOL</span>
-            <button class="btn btn-sm text-white" onclick="toggleChat()"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="chat-messages" class="card-body bg-light" style="height: 350px; overflow-y: auto;">
-            <div class="p-2 bg-white rounded mb-2 shadow-sm border">
-                <small class="text-muted">Sistema</small>
-                <p class="mb-0 text-dark small">Hola. Soy el agente IA (Gemini 2.5). ¿En qué puedo apoyar?</p>
+                <ul class="navbar-nav ms-auto">
+                    {% if session.get("logged_in") %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                                <div class="bg-white text-dark rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 30px; height: 30px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                {{ session.get("username") }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li><a class="dropdown-item" href="{{ url_for('crear_usuario') }}">Crear Usuario</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="btn btn-outline-light btn-sm ms-2" href="{{ url_for('login') }}">Iniciar Sesión</a>
+                        </li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
-        <div class="card-footer p-2">
-            <div class="input-group">
-                <input type="text" id="chat-input" class="form-control form-control-sm" placeholder="Escribe aquí..." onkeypress="handleEnter(event)">
-                <div class="input-group-append">
-                    <button class="btn btn-success btn-sm" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+    </nav>
+
+    <div class="container main-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="bg-white py-3 mt-auto border-top">
+        <div class="container text-center text-muted small">
+            <span>Copyright &copy; SIDPOL 2025 | Sistema de Inteligencia Policial</span>
+        </div>
+    </footer>
+
+    <div id="chatbot-container">
+        <button id="chatbot-trigger" onclick="toggleChat()">
+            <i class="fas fa-robot fa-lg"></i>
+        </button>
+
+        <div id="chatbot-window" class="chat-window shadow-lg" style="display: none;">
+            
+            <div class="p-3 text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--sidpol-dark), var(--sidpol-primary));">
+                <div>
+                    <i class="fas fa-shield-alt me-2"></i> <strong>SIDPOL AI</strong>
+                    <span class="badge bg-success ms-2" style="font-size: 0.6em;">ONLINE</span>
+                </div>
+                <button class="btn btn-sm text-white-50" onclick="toggleChat()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div id="chat-messages" class="bg-light p-3" style="flex: 1; overflow-y: auto;">
+                <div class="d-flex justify-content-start mb-3">
+                    <div class="chat-bubble-bot shadow-sm">
+                        Hola. Soy el agente IA (Gemini 2.5). Tengo acceso a datos 2018-2025 y proyecciones 2026. ¿En qué apoyo?
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-white border-top">
+                <div class="input-group">
+                    <input type="text" id="chat-input" class="form-control border-0 bg-light" placeholder="Escriba su consulta..." onkeypress="handleEnter(event)" style="border-radius: 20px 0 0 20px;">
+                    <button class="btn btn-primary" onclick="sendMessage()" style="border-radius: 0 20px 20px 0; background-color: var(--sidpol-primary);">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function toggleChat() {
+            const w = document.getElementById('chatbot-window');
+            const isHidden = w.style.display === 'none';
+            w.style.display = isHidden ? 'flex' : 'none'; // Flex para mantener estructura vertical
+            if(isHidden) document.getElementById('chat-input').focus();
+        }
 
+        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+
+        function formatText(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                       .replace(/\* /g, '<br>• ')
+                       .replace(/\n/g, '<br>');
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+
+            const chatBody = document.getElementById('chat-messages');
+            
+            // Usuario
+            chatBody.innerHTML += `<div class="d-flex justify-content-end mb-3"><div class="chat-bubble-user shadow-sm">${msg}</div></div>`;
+            input.value = '';
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            // Loading
+            const loadId = 'loading-' + Date.now();
+            chatBody.innerHTML += `
+                <div id="${loadId}" class="d-flex justify-content-start mb-3">
+                    <div class="chat-bubble-bot shadow-sm typing">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>`;
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            // Fetch
+            fetch('/chat-ia', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `mensaje=${encodeURIComponent(msg)}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById(loadId).remove();
+                const cleanResp = formatText(data.respuesta || "Sin respuesta.");
+                chatBody.innerHTML += `<div class="d-flex justify-content-start mb-3"><div class="chat-bubble-bot shadow-sm">${cleanResp}</div></div>`;
+                chatBody.scrollTop = chatBody.scrollHeight;
+            })
+            .catch(err => {
+                if(document.getElementById(loadId)) document.getElementById(loadId).remove();
+                console.error(err);
+            });
+        }
+    </script>
 </body>
 </html>
