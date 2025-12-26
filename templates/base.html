@@ -14,131 +14,69 @@
         :root {
             --sidpol-dark: #0f172a;       /* Azul Noche */
             --sidpol-primary: #1e293b;    /* Azul Acero */
-            --sidpol-accent: #38bdf8;     /* Celeste Neón (Tecnología) */
+            --sidpol-accent: #38bdf8;     /* Celeste Neón */
             --sidpol-success: #10b981;    /* Verde Operativo */
             --text-light: #f8fafc;
         }
 
         body {
             font-family: 'Poppins', sans-serif;
-            background-color: #f1f5f9; /* Gris muy claro para el fondo */
+            background-color: #f1f5f9;
             color: #334155;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
-        /* NAVBAR DEGRADADO ESTILO POLICIAL */
+        /* NAVBAR DEGRADADO */
         .navbar-sidpol {
             background: linear-gradient(135deg, var(--sidpol-dark) 0%, var(--sidpol-primary) 100%);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             padding: 0.8rem 1rem;
         }
 
-        .navbar-brand {
-            font-weight: 700;
-            letter-spacing: 1px;
-            color: var(--text-light) !important;
-            display: flex;
-            align-items: center;
-        }
-
+        .navbar-brand { font-weight: 700; letter-spacing: 1px; color: var(--text-light) !important; }
+        
         .nav-link {
-            color: #cbd5e1 !important; /* Gris claro */
+            color: #cbd5e1 !important;
             font-weight: 400;
             transition: all 0.3s ease;
-            border-radius: 5px;
             margin: 0 2px;
         }
-
-        .nav-link:hover {
-            color: var(--sidpol-accent) !important;
-            background-color: rgba(255, 255, 255, 0.05);
-            transform: translateY(-1px);
-        }
-
-        .nav-link.active {
+        .nav-link:hover, .nav-link.active {
             color: var(--sidpol-accent) !important;
             font-weight: 600;
-            background-color: rgba(56, 189, 248, 0.1);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
         }
 
-        /* CONTENEDOR PRINCIPAL */
-        .main-container {
-            flex: 1; /* Empuja el footer hacia abajo */
-            padding: 2rem 0;
-        }
+        .main-container { flex: 1; padding: 2rem 0; }
 
-        /* ESTILOS DEL CHATBOT (FLOTANTE Y MODERNO) */
-        #chatbot-container {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-            z-index: 9999;
-        }
-
+        /* CHATBOT FLOTANTE */
+        #chatbot-container { position: fixed; bottom: 25px; right: 25px; z-index: 9999; }
         #chatbot-trigger {
-            width: 65px;
-            height: 65px;
-            border-radius: 50%;
+            width: 65px; height: 65px; border-radius: 50%;
             background: linear-gradient(135deg, var(--sidpol-success), #059669);
-            border: none;
-            color: white;
+            border: none; color: white;
             box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer; transition: transform 0.2s;
         }
-
-        #chatbot-trigger:hover {
-            transform: scale(1.1);
-            box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.5);
-        }
+        #chatbot-trigger:hover { transform: scale(1.1); }
 
         .chat-window {
-            display: none; /* Oculto por defecto */
-            position: absolute;
-            bottom: 80px;
-            right: 0;
-            width: 380px;
-            height: 500px;
-            border: none;
-            border-radius: 16px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            background: white;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            display: none; position: absolute; bottom: 80px; right: 0;
+            width: 380px; height: 500px; border-radius: 16px; overflow: hidden;
+            flex-direction: column; background: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
 
-        .chat-bubble-user {
-            background-color: var(--sidpol-primary);
-            color: white;
-            border-radius: 12px 12px 0 12px;
-            padding: 10px 15px;
-            margin-left: auto;
-            max-width: 80%;
-            font-size: 0.9rem;
-        }
-
-        .chat-bubble-bot {
-            background-color: #f1f5f9;
-            color: #334155;
-            border-left: 4px solid var(--sidpol-success);
-            border-radius: 12px 12px 12px 0;
-            padding: 10px 15px;
-            max-width: 85%;
-            font-size: 0.9rem;
-        }
-
-        /* Animación de tipeo */
-        .typing span {
-            display: inline-block; width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both; margin: 0 1px;
-        }
-        .typing span:nth-child(1) { animation-delay: -0.32s; }
-        .typing span:nth-child(2) { animation-delay: -0.16s; }
+        .chat-bubble-user { background-color: var(--sidpol-primary); color: white; border-radius: 12px 12px 0 12px; padding: 10px 15px; max-width: 80%; font-size: 0.9rem; }
+        .chat-bubble-bot { background-color: #f1f5f9; color: #334155; border-left: 4px solid var(--sidpol-success); border-radius: 12px 12px 12px 0; padding: 10px 15px; max-width: 85%; font-size: 0.9rem; }
+        
+        /* Animación typing */
+        .typing span { display: inline-block; width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; margin: 0 1px; }
+        .typing span:nth-child(1) { animation-delay: -0.32s; } .typing span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -149,8 +87,12 @@
     <nav class="navbar navbar-expand-lg navbar-dark navbar-sidpol sticky-top">
         <div class="container-fluid">
             
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-shield-alt me-2 text-warning"></i> SIDPOL <span class="text-info ms-1" style="font-size: 0.8em; opacity: 0.8;">Intelligence</span>
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='img/logo_sidpol.png') }}" alt="Logo" style="height: 40px; margin-right: 10px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                <i class="fas fa-shield-alt me-2 text-warning" style="display:none; font-size: 1.5rem;"></i>
+                <div style="line-height: 1;">
+                    SIDPOL <span class="text-info" style="font-size: 0.7em; opacity: 0.9; display: block;">Intelligence System</span>
+                </div>
             </a>
 
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -160,16 +102,10 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}">
-                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
-                        </a>
-                    </li>
-
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a></li>
+                    
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-chart-pie me-1"></i> Reportes
-                        </a>
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-chart-pie me-1"></i> Reportes</a>
                         <ul class="dropdown-menu shadow border-0">
                             <li><a class="dropdown-item" href="{{ url_for('resumen_anual') }}">Resumen Anual</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('departamentos') }}">Departamentos</a></li>
@@ -179,45 +115,33 @@
                         </ul>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/prediccion-2026' in request.path %}active{% endif %}" href="{{ url_for('prediccion_2026') }}">
-                            <i class="fas fa-brain me-1"></i> Predicción '26
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link text-info fw-bold" href="/agente-estrategico">
-                            <i class="fas fa-user-secret me-1"></i> Estratega IA
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-success fw-bold" href="/riesgo-modalidad">
-                            <i class="fas fa-shield-virus me-1"></i> Simulador
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('prediccion_2026') }}"><i class="fas fa-brain me-1"></i> Predicción '26</a></li>
+                    <li class="nav-item"><a class="nav-link text-info fw-bold" href="/agente-estrategico"><i class="fas fa-user-secret me-1"></i> Estratega IA</a></li>
+                    <li class="nav-item"><a class="nav-link text-success fw-bold" href="/riesgo-modalidad"><i class="fas fa-shield-virus me-1"></i> Simulador</a></li>
                 </ul>
 
-                <ul class="navbar-nav ms-auto">
-                    {% if session.get("logged_in") %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
-                                <div class="bg-white text-dark rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 30px; height: 30px;">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                {{ session.get("username") }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                                <li><a class="dropdown-item" href="{{ url_for('crear_usuario') }}">Crear Usuario</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
-                            </ul>
-                        </li>
+                <div class="d-flex align-items-center gap-2">
+                    
+                    {% if current_user.is_authenticated or session.get('logged_in') or session.get('user') %}
+                        
+                        <a href="{{ url_for('crear_usuario') }}" class="btn btn-sm btn-outline-warning d-flex align-items-center" title="Crear Nuevo Usuario">
+                            <i class="fas fa-user-plus me-1"></i> <span class="d-none d-lg-inline">Crear Usuario</span>
+                        </a>
+
+                        <div class="text-white-50 small mx-2 d-none d-lg-block">
+                            <i class="fas fa-user-circle"></i> 
+                            {{ current_user.username if current_user.is_authenticated else session.get('username', 'Oficial') }}
+                        </div>
+
+                        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger d-flex align-items-center">
+                            <i class="fas fa-sign-out-alt me-1"></i> <span class="d-none d-lg-inline">Salir</span>
+                        </a>
+
                     {% else %}
-                        <li class="nav-item">
-                            <a class="btn btn-outline-light btn-sm ms-2" href="{{ url_for('login') }}">Iniciar Sesión</a>
-                        </li>
+                        <a href="{{ url_for('login') }}" class="btn btn-sm btn-light text-dark fw-bold px-3">Iniciar Sesión</a>
                     {% endif %}
-                </ul>
+                </div>
+
             </div>
         </div>
     </nav>
@@ -238,40 +162,62 @@
     </div>
 
     <footer class="bg-white py-3 mt-auto border-top">
-        <div class="container text-center text-muted small">
-            <span>Copyright &copy; SIDPOL 2025 | Sistema de Inteligencia Policial</span>
+        <div class="container d-flex justify-content-between align-items-center flex-wrap">
+            <div class="text-muted small">
+                <span>Copyright &copy; SIDPOL 2025 | Sistema de Inteligencia Policial</span>
+            </div>
+            <div class="d-flex align-items-center mt-2 mt-md-0">
+                <span class="small text-muted me-2">Respaldado por:</span>
+                <img src="{{ url_for('static', filename='img/logo_unmsm.png') }}" alt="UNMSM" style="height: 40px; opacity: 0.9;" onerror="this.style.display='none';">
+            </div>
         </div>
     </footer>
 
     <div id="chatbot-container">
-        <button id="chatbot-trigger" onclick="toggleChat()">
-            <i class="fas fa-robot fa-lg"></i>
-        </button>
+        <button id="chatbot-trigger" onclick="toggleChat()"><i class="fas fa-robot fa-lg"></i></button>
 
         <div id="chatbot-window" class="chat-window shadow-lg" style="display: none;">
-            
             <div class="p-3 text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--sidpol-dark), var(--sidpol-primary));">
-                <div>
-                    <i class="fas fa-shield-alt me-2"></i> <strong>SIDPOL AI</strong>
-                    <span class="badge bg-success ms-2" style="font-size: 0.6em;">ONLINE</span>
-                </div>
+                <div><i class="fas fa-shield-alt me-2"></i> <strong>SIDPOL AI</strong></div>
                 <button class="btn btn-sm text-white-50" onclick="toggleChat()"><i class="fas fa-times"></i></button>
             </div>
 
             <div id="chat-messages" class="bg-light p-3" style="flex: 1; overflow-y: auto;">
                 <div class="d-flex justify-content-start mb-3">
                     <div class="chat-bubble-bot shadow-sm">
-                        Hola. Soy el agente IA (Gemini 2.5). Tengo acceso a datos 2018-2025 y proyecciones 2026. ¿En qué apoyo?
+                        Agente Gemini 2.5 listo. Datos 2018-2025 y proyección 2026 cargados.
                     </div>
                 </div>
             </div>
 
             <div class="p-3 bg-white border-top">
                 <div class="input-group">
-                    <input type="text" id="chat-input" class="form-control border-0 bg-light" placeholder="Escriba su consulta..." onkeypress="handleEnter(event)" style="border-radius: 20px 0 0 20px;">
+                    <input type="text" id="chat-input" class="form-control border-0 bg-light" placeholder="Consulta..." onkeypress="handleEnter(event)" style="border-radius: 20px 0 0 20px;">
                     <button class="btn btn-primary" onclick="sendMessage()" style="border-radius: 0 20px 20px 0; background-color: var(--sidpol-primary);">
                         <i class="fas fa-paper-plane"></i>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="position: fixed; bottom: 20px; left: 20px; z-index: 990;">
+        <button class="btn btn-dark btn-sm rounded-pill shadow" data-bs-toggle="modal" data-bs-target="#modalEquipo">
+            <i class="fas fa-users me-1"></i> Equipo
+        </button>
+    </div>
+
+    <div class="modal fade" id="modalEquipo" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-graduation-cap me-2"></i>Equipo de Investigación</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="{{ url_for('static', filename='img/foto_equipo.jpg') }}" class="img-fluid rounded shadow mb-3" alt="Equipo" onerror="this.src='https://via.placeholder.com/400x250?text=Foto+Equipo'">
+                    <h6 class="fw-bold text-dark">Maestría en Ingeniería de Sistemas</h6>
+                    <p class="text-muted small">Universidad Nacional Mayor de San Marcos</p>
                 </div>
             </div>
         </div>
@@ -283,41 +229,22 @@
         function toggleChat() {
             const w = document.getElementById('chatbot-window');
             const isHidden = w.style.display === 'none';
-            w.style.display = isHidden ? 'flex' : 'none'; // Flex para mantener estructura vertical
+            w.style.display = isHidden ? 'flex' : 'none';
             if(isHidden) document.getElementById('chat-input').focus();
         }
-
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
-
-        function formatText(text) {
-            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                       .replace(/\* /g, '<br>• ')
-                       .replace(/\n/g, '<br>');
-        }
-
+        function formatText(text) { return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\* /g, '<br>• ').replace(/\n/g, '<br>'); }
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const msg = input.value.trim();
             if(!msg) return;
-
             const chatBody = document.getElementById('chat-messages');
-            
-            // Usuario
             chatBody.innerHTML += `<div class="d-flex justify-content-end mb-3"><div class="chat-bubble-user shadow-sm">${msg}</div></div>`;
             input.value = '';
             chatBody.scrollTop = chatBody.scrollHeight;
-
-            // Loading
             const loadId = 'loading-' + Date.now();
-            chatBody.innerHTML += `
-                <div id="${loadId}" class="d-flex justify-content-start mb-3">
-                    <div class="chat-bubble-bot shadow-sm typing">
-                        <span></span><span></span><span></span>
-                    </div>
-                </div>`;
+            chatBody.innerHTML += `<div id="${loadId}" class="d-flex justify-content-start mb-3"><div class="chat-bubble-bot shadow-sm typing"><span></span><span></span><span></span></div></div>`;
             chatBody.scrollTop = chatBody.scrollHeight;
-
-            // Fetch
             fetch('/chat-ia', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -330,10 +257,7 @@
                 chatBody.innerHTML += `<div class="d-flex justify-content-start mb-3"><div class="chat-bubble-bot shadow-sm">${cleanResp}</div></div>`;
                 chatBody.scrollTop = chatBody.scrollHeight;
             })
-            .catch(err => {
-                if(document.getElementById(loadId)) document.getElementById(loadId).remove();
-                console.error(err);
-            });
+            .catch(err => { if(document.getElementById(loadId)) document.getElementById(loadId).remove(); });
         }
     </script>
 </body>
