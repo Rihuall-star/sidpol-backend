@@ -619,29 +619,86 @@ def riesgo_modalidad():
                            labels=grafico_labels, 
                            valores=grafico_data)
 
+# ============================================================
+# CHATBOT IA: CONTEXTO INTELIGENTE (MEJORADO)
+# ============================================================
 @app.route('/chat-ia', methods=['POST'])
 @login_required
 def chat_ia():
-    mensaje = request.form.get('mensaje')
+    mensaje = request.form.get('mensaje', '').strip()
     if not mensaje: return jsonify({'respuesta': "No entendí."})
     
     try:
-        # Historial real
-        pipeline = [{"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}}, {"$sort": {"_id": 1}}]
-        datos_raw = list(col.aggregate(pipeline))
-        texto_hist = "\n".join([f"- {d['_id']}: {d['total']:,}" for d in datos_raw if str(d['_id']).isdigit()])
+        col = db['denuncias']
+        contexto_acumulado = "ERES UN ANALISTA DE INTELIGENCIA POLICIAL (SIDPOL).\n"
         
-        # Proyección
-        try: total_26, _, _, _, _ = predecir_total_2026(col)
-        except: total_26 = "N/A"
+        # -----------------------------------------------------
+        # 1. CONTEXTO GENERAL (Siempre se envía)
+        # -----------------------------------------------------
+        # A. Histórico Anual
+        pipeline_anual = [{"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}}, {"$sort": {"_id": 1}}]
+        datos_anual = list(col.aggregate(pipeline_anual))
+        txt_anual = ", ".join([f"{d['_id']}: {d['total']:,}" for d in datos_anual if str(d['_id']).isdigit()])
+        contexto_acumulado += f"HISTORIAL NACIONAL POR AÑO: {txt_anual}.\n"
+
+        # B. Top 5 Modalidades (Nacional) - Para que sepa de qué delitos hablamos
+        pipeline_mod = [
+            {"$group": {"_id": "$P_MODALIDADES", "total": {"$sum": "$cantidad"}}},
+            {"$sort": {"total": -1}},
+            {"$limit": 5}
+        ]
+        datos_mod = list(col.aggregate(pipeline_mod))
+        txt_mod = ", ".join([f"{d['_id']} ({d['total']:,})" for d in datos_mod])
+        contexto_acumulado += f"TOP 5 DELITOS (NACIONAL): {txt_mod}.\n"
+
+        # -----------------------------------------------------
+        # 2. DETECCIÓN INTELIGENTE (¿El usuario habla de un lugar?)
+        # -----------------------------------------------------
+        deptos_clave = [
+            "AMAZONAS", "ANCASH", "APURIMAC", "AREQUIPA", "AYACUCHO", "CAJAMARCA", 
+            "CALLAO", "CUSCO", "HUANCAVELICA", "HUANUCO", "ICA", "JUNIN", "LA LIBERTAD", 
+            "LAMBAYEQUE", "LIMA", "LORETO", "MADRE DE DIOS", "MOQUEGUA", "PASCO", 
+            "PIURA", "PUNO", "SAN MARTIN", "TACNA", "TUMBES", "UCAYALI"
+        ]
         
-        contexto = f"HISTORIAL:\n{texto_hist}\nPROYECCIÓN 2026: {total_26}"
-        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto)
+        mensaje_upper = mensaje.upper()
+        depto_detectado = None
         
+        # Buscamos si el mensaje contiene algún departamento
+        for d in deptos_clave:
+            if d in mensaje_upper:
+                depto_detectado = d
+                break 
+        
+        # SI ENCONTRAMOS UN LUGAR, BUSCAMOS SU DATA ESPECÍFICA
+        if depto_detectado:
+            # Consulta a MongoDB filtrando por ese departamento
+            pipeline_local = [
+                # Usamos regex para que "LIMA" coincida con "LIMA METROPOLITANA" o "REGION LIMA"
+                {"$match": {"DPTO_HECHO_NEW": {"$regex": depto_detectado, "$options": "i"}}},
+                {"$group": {"_id": "$P_MODALIDADES", "total": {"$sum": "$cantidad"}}},
+                {"$sort": {"total": -1}},
+                {"$limit": 3} # Traemos los 3 delitos más comunes de esa zona
+            ]
+            datos_local = list(col.aggregate(pipeline_local))
+            
+            if datos_local:
+                txt_local = ", ".join([f"{d['_id']} ({d['total']:,})" for d in datos_local])
+                contexto_acumulado += f"\n--- DATOS ESPECÍFICOS PARA '{depto_detectado}' ---\n"
+                contexto_acumulado += f"Principales delitos en esta región: {txt_local}.\n"
+            else:
+                contexto_acumulado += f"\n(Nota: No se encontraron datos específicos para {depto_detectado} en la BD).\n"
+
+        # -----------------------------------------------------
+        # 3. CONSULTA A GEMINI (Con toda la info nueva)
+        # -----------------------------------------------------
+        # Se envía el mensaje del usuario + el contexto enriquecido
+        respuesta = consultar_chat_general(mensaje, contexto_datos=contexto_acumulado)
         return jsonify({'respuesta': respuesta})
+
     except Exception as e:
-        print(f"Error chat: {e}")
-        return jsonify({'respuesta': "Error interno."})
+        print(f"Error chat avanzado: {e}")
+        return jsonify({'respuesta': "Ocurrió un error consultando la base de datos."})
 
 # ============================================================
 #  ADMINISTRACIÓN DE USUARIOS
