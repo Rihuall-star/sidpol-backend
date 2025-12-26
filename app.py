@@ -264,8 +264,32 @@ def departamentos_percapita():
     
     # Poblaciones aproximadas (INEI)
     poblaciones = {
-        "LIMA METROPOLITANA": 11810722, "AREQUIPA": 1523839, "LA LIBERTAD": 2078028,
-        "PIURA": 2138730, "CUSCO": 1428028, "JUNIN": 1418738
+        "MADRE DE DIOS": 184083,
+        "AREQUIPA": 1523839,
+        "LAMBAYEQUE": 1367029,
+        "MOQUEGUA": 200973,
+        "ICA": 1004829,
+        "TUMBES": 280723,
+        "TACNA": 397737,
+        "APURIMAC": 436820,
+        "JUNIN": 1418738,
+        "CUSCO": 1428028,
+        "ANCASH": 1202828,
+        "HUANUCO": 782039,
+        "AMAZONAS": 458022,
+        "LA LIBERTAD": 2078028,
+        "PIURA": 2138730,
+        "AYACUCHO": 671182,
+        "UCAYALI": 568028,
+        "SAN MARTIN": 924292,
+        "PASCO": 278028,
+        "CAJAMARCA": 1503836,
+        "PUNO": 1268093,
+        "LORETO": 1138637,
+        "HUANCAVELICA": 371038,
+        "LIMA METROPOLITANA": 11810722,
+        "REGION LIMA": 1092827,
+        "PROV. CONST. DEL CALLAO": 1147628,
         # ... completa las demás
     }
 
