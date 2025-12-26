@@ -284,6 +284,58 @@ def departamentos():
 
     return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
 
+# ============================================================
+# CLUSTERING (K-MEANS) - LA FUNCIÓN QUE FALTABA
+# ============================================================
+@app.route('/cluster-departamentos')
+@login_required
+def cluster_departamentos():
+    # Agrupamos datos por departamento
+    pipeline = [
+        {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
+        {"$sort": {"total": 1}}
+    ]
+    data_bd = list(col.aggregate(pipeline))
+    
+    # Limpieza de nulos
+    data_clean = [d for d in data_bd if d["_id"]]
+    
+    if len(data_clean) < 3: return "Datos insuficientes para clusters."
+
+    # Preparamos datos para Machine Learning
+    nombres = [d["_id"] for d in data_clean]
+    valores = np.array([d["total"] for d in data_clean]).reshape(-1, 1)
+
+    # Ejecutamos K-Means
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10).fit(valores)
+    labels = kmeans.labels_
+
+    # Ordenamos los clusters para que 0=Bajo, 1=Medio, 2=Alto (Semaforización)
+    centroides = kmeans.cluster_centers_.flatten()
+    mapa_orden = {old: new for new, old in enumerate(np.argsort(centroides))}
+    
+    colores = ['#28a745', '#ffc107', '#dc3545'] # Verde, Amarillo, Rojo
+    etiquetas = ['Bajo', 'Medio', 'Alto']
+    
+    resultados = []
+    for i, nom in enumerate(nombres):
+        idx = mapa_orden[labels[i]]
+        resultados.append({
+            "departamento": nom, 
+            "total": int(valores[i][0]),
+            "cluster": idx, 
+            "color": colores[idx], 
+            "etiqueta": etiquetas[idx]
+        })
+        
+    stats = {
+        "bajo": sum(1 for r in resultados if r['cluster'] == 0),
+        "medio": sum(1 for r in resultados if r['cluster'] == 1),
+        "alto": sum(1 for r in resultados if r['cluster'] == 2)
+    }
+    
+    return render_template('cluster_departamentos.html', data=resultados, stats=stats)
+
 @app.route("/departamentos-percapita")
 @login_required
 def departamentos_percapita():
