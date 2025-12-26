@@ -42,6 +42,7 @@
             font-weight: 400;
             transition: all 0.3s ease;
             margin: 0 2px;
+            font-size: 0.95rem; /* Ajuste para que quepan más items */
         }
         .nav-link:hover, .nav-link.active {
             color: var(--sidpol-accent) !important;
@@ -73,7 +74,6 @@
         .chat-bubble-user { background-color: var(--sidpol-primary); color: white; border-radius: 12px 12px 0 12px; padding: 10px 15px; max-width: 80%; font-size: 0.9rem; }
         .chat-bubble-bot { background-color: #f1f5f9; color: #334155; border-left: 4px solid var(--sidpol-success); border-radius: 12px 12px 12px 0; padding: 10px 15px; max-width: 85%; font-size: 0.9rem; }
         
-        /* Animación typing */
         .typing span { display: inline-block; width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; margin: 0 1px; }
         .typing span:nth-child(1) { animation-delay: -0.32s; } .typing span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
@@ -84,7 +84,7 @@
 
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-sidpol sticky-top">
+    <nav class="navbar navbar-expand-xl navbar-dark navbar-sidpol sticky-top">
         <div class="container-fluid">
             
             <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
@@ -101,7 +101,7 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <ul class="navbar-nav me-auto mb-2 mb-xl-0">
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a></li>
                     
                     <li class="nav-item dropdown">
@@ -109,15 +109,25 @@
                         <ul class="dropdown-menu shadow border-0">
                             <li><a class="dropdown-item" href="{{ url_for('resumen_anual') }}">Resumen Anual</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('departamentos') }}">Departamentos</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('modalidades') }}">Modalidades</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('regiones') }}">Regiones</a></li> <li><a class="dropdown-item" href="{{ url_for('departamentos_percapita') }}">Deptos Per Cápita</a></li> <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/reporte-lima">📈 Reporte Lima</a></li>
                         </ul>
                     </li>
 
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-microscope me-1"></i> Análisis</a>
+                        <ul class="dropdown-menu shadow border-0">
+                            <li><a class="dropdown-item" href="{{ url_for('modalidades') }}">Modalidades Delictivas</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('trimestres') }}">Trimestres</a></li>
+                            <li><a class="dropdown-item text-primary" href="{{ url_for('cluster_departamentos') }}"><i class="fas fa-project-diagram me-1"></i> Clustering (K-Means)</a></li> <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-warning fw-bold" href="{{ url_for('comparativa_foco') }}">⭐ Tarea Punto 4</a></li> </ul>
+                    </li>
+
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('prediccion_2026') }}"><i class="fas fa-brain me-1"></i> Predicción '26</a></li>
-                    <li class="nav-item"><a class="nav-link text-info fw-bold" href="/agente-estrategico"><i class="fas fa-user-secret me-1"></i> Estratega IA</a></li>
-                    <li class="nav-item"><a class="nav-link text-success fw-bold" href="/riesgo-modalidad"><i class="fas fa-shield-virus me-1"></i> Simulador</a></li>
+                    
+                    <li class="nav-item"><a class="nav-link text-success fw-bold" href="/riesgo-modalidad">
+                        <i class="fas fa-shield-virus me-1"></i> Riesgo Modalidad
+                    </a></li> <li class="nav-item"><a class="nav-link text-info" href="/agente-estrategico"><i class="fas fa-user-secret me-1"></i> Estratega IA</a></li>
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">
