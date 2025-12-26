@@ -344,51 +344,66 @@ def regiones():
     pipeline = [{"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}}]
     datos = list(col.aggregate(pipeline))
     
-    # CLASIFICACIÓN COMPLETA (Costa, Sierra, Selva)
+    # DICCIONARIO EXACTO (Copiado de tus datos reales)
     mapa_regiones = {
         # COSTA
-        "TUMBES": "Costa", "PIURA": "Costa", "LAMBAYEQUE": "Costa", 
-        "LA LIBERTAD": "Costa", "ANCASH": "Costa", "LIMA METROPOLITANA": "Costa", 
-        "REGION LIMA": "Costa", "PROV. CONST. DEL CALLAO": "Costa", "CALLAO": "Costa",
-        "ICA": "Costa", "AREQUIPA": "Costa", "MOQUEGUA": "Costa", "TACNA": "Costa",
+        "TUMBES": "Costa", 
+        "PIURA": "Costa", 
+        "LAMBAYEQUE": "Costa", 
+        "LA LIBERTAD": "Costa", 
+        "ANCASH": "Costa", 
+        "LIMA METROPOLITANA": "Costa",      # <--- ¡AQUÍ ESTABA EL FANTASMA!
+        "REGION LIMA": "Costa",             # <--- Y AQUÍ
+        "PROV. CONST. DEL CALLAO": "Costa", 
+        "CALLAO": "Costa",
+        "ICA": "Costa", 
+        "AREQUIPA": "Costa", 
+        "MOQUEGUA": "Costa", 
+        "TACNA": "Costa",
 
         # SIERRA
-        "CAJAMARCA": "Sierra", "HUANUCO": "Sierra", "PASCO": "Sierra", 
-        "JUNIN": "Sierra", "HUANCAVELICA": "Sierra", "AYACUCHO": "Sierra", 
-        "APURIMAC": "Sierra", "CUSCO": "Sierra", "PUNO": "Sierra",
+        "CAJAMARCA": "Sierra", 
+        "HUANUCO": "Sierra", 
+        "PASCO": "Sierra", 
+        "JUNIN": "Sierra", 
+        "HUANCAVELICA": "Sierra", 
+        "AYACUCHO": "Sierra", 
+        "APURIMAC": "Sierra", 
+        "CUSCO": "Sierra", 
+        "PUNO": "Sierra",
 
         # SELVA
-        "AMAZONAS": "Selva", "LORETO": "Selva", "SAN MARTIN": "Selva", 
-        "UCAYALI": "Selva", "MADRE DE DIOS": "Selva"
+        "AMAZONAS": "Selva", 
+        "LORETO": "Selva", 
+        "SAN MARTIN": "Selva", 
+        "UCAYALI": "Selva", 
+        "MADRE DE DIOS": "Selva"
     }
     
     acumulado = {"Costa": 0, "Sierra": 0, "Selva": 0}
-    otros_log = [] # Para detectar errores
-
+    
     for d in datos:
-        # Limpieza CRÍTICA
         nombre_bd = str(d["_id"]).strip().upper()
         
+        # Clasificación directa
         region = mapa_regiones.get(nombre_bd)
         
         if region:
             acumulado[region] += d["total"]
         else:
-            # Si no encuentra región, lo intentamos clasificar manualmente o va a Otros
-            if nombre_bd == "LIMA": acumulado["Costa"] += d["total"]
-            else: 
-                # Solo sumamos a "Otras" si es un dato basura o desconocido
-                # print(f"Sin Región: {nombre_bd}") # Descomentar para depurar
-                pass 
-        
-    # Convertir a lista para el gráfico
+            # Si falla, miramos en los logs (Render) qué nombre raro apareció
+            print(f"⚠️ DATO SIN REGIÓN: '{nombre_bd}'") 
+            
+            # Fallback de seguridad para no perder datos (Asumimos Costa para Lima/Callao raros)
+            if "LIMA" in nombre_bd or "CALLAO" in nombre_bd:
+                acumulado["Costa"] += d["total"]
+
     tabla = [
         {"_id": "Costa", "total": acumulado["Costa"]},
         {"_id": "Sierra", "total": acumulado["Sierra"]},
         {"_id": "Selva", "total": acumulado["Selva"]}
     ]
     
-    # Ordenar
     tabla = sorted(tabla, key=lambda x: x["total"], reverse=True)
     
     return render_template("regiones.html", 
@@ -419,44 +434,63 @@ def trimestres():
     datos = list(col.aggregate(pipeline))
     return render_template("trimestres.html", labels=[d["_id"] for d in datos], valores=[d["total"] for d in datos], tabla=datos)
 
-@app.route('/cluster-departamentos')
+@app.route('/departamentos')
 @login_required
-def cluster_departamentos():
-    pipeline = [
-        {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"total": 1}}
-    ]
-    data_bd = list(col.aggregate(pipeline))
-    data_clean = [d for d in data_bd if d["_id"]]
+def departamentos():
+    data_raw = ranking_departamentos(col, n=50) 
     
-    if len(data_clean) < 3: return "Datos insuficientes para clusters."
-
-    nombres = [d["_id"] for d in data_clean]
-    valores = np.array([d["total"] for d in data_clean]).reshape(-1, 1)
-
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10).fit(valores)
-    labels = kmeans.labels_
-
-    # Semaforización
-    centroides = kmeans.cluster_centers_.flatten()
-    mapa_orden = {old: new for new, old in enumerate(np.argsort(centroides))}
-    colores = ['#28a745', '#ffc107', '#dc3545'] # Verde, Amarillo, Rojo
-    etiquetas = ['Bajo', 'Medio', 'Alto']
-    
-    resultados = []
-    for i, nom in enumerate(nombres):
-        idx = mapa_orden[labels[i]]
-        resultados.append({
-            "departamento": nom, "total": int(valores[i][0]),
-            "cluster": idx, "color": colores[idx], "etiqueta": etiquetas[idx]
-        })
+    # DICCIONARIO MAESTRO MAPA (Highcharts codes)
+    map_mapping = {
+        # --- LAS LIMAS (CLAVE DEL PROBLEMA) ---
+        "LIMA METROPOLITANA": "pe-li",       # El código 'pe-li' es la zona principal (Azul Oscuro)
+        "REGION LIMA": "pe-lr",              # El código 'pe-lr' es la región externa
+        "LIMA": "pe-li",                     # Por si acaso
         
-    stats = {
-        "bajo": sum(1 for r in resultados if r['cluster'] == 0),
-        "medio": sum(1 for r in resultados if r['cluster'] == 1),
-        "alto": sum(1 for r in resultados if r['cluster'] == 2)
+        # --- EL CALLAO ---
+        "PROV. CONST. DEL CALLAO": "pe-cl",
+        "CALLAO": "pe-cl",
+
+        # --- EL RESTO DEL PERÚ ---
+        "AMAZONAS": "pe-am",
+        "ANCASH": "pe-an",
+        "APURIMAC": "pe-ap",
+        "AREQUIPA": "pe-ar",
+        "AYACUCHO": "pe-ay",
+        "CAJAMARCA": "pe-cj",
+        "CUSCO": "pe-cs",
+        "HUANCAVELICA": "pe-hv",
+        "HUANUCO": "pe-hc",
+        "ICA": "pe-ic",
+        "JUNIN": "pe-ju",
+        "LA LIBERTAD": "pe-ll",
+        "LAMBAYEQUE": "pe-lb",
+        "LORETO": "pe-lo",
+        "MADRE DE DIOS": "pe-md",
+        "MOQUEGUA": "pe-mq",
+        "PASCO": "pe-pa",
+        "PIURA": "pe-pi",
+        "PUNO": "pe-pu",
+        "SAN MARTIN": "pe-sm",
+        "TACNA": "pe-ta",
+        "TUMBES": "pe-tu",
+        "UCAYALI": "pe-uc"
     }
-    return render_template('cluster_departamentos.html', data=resultados, stats=stats)
+
+    data_mapa = []
+    top_5 = data_raw[:5]
+
+    for d in data_raw:
+        nombre_bd = str(d["_id"]).strip().upper()
+        
+        # Mapeo exacto
+        code = map_mapping.get(nombre_bd)
+        
+        if code:
+            data_mapa.append([code, d["total"]])
+        else:
+            print(f"⚠️ NO MAPEADO EN MAPA: {nombre_bd}")
+
+    return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
 
 @app.route('/comparativa-foco')
 @login_required
