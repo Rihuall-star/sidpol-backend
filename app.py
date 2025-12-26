@@ -17,7 +17,7 @@ from ml_llm import consultar_estratega_ia, analizar_riesgo_ia, consultar_chat_ge
 from ml_riesgo import entrenar_modelo_riesgo, predecir_valor_especifico
 from ml_llm import  consultar_chat_general
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-import os
+from ml_utils import db
 
 from flask import (
     Flask, render_template, request, redirect, jsonify,
@@ -127,6 +127,34 @@ def login():
 @app.route("/")
 @login_required
 def index():
+    # ---------------------------------------------------------
+    # 1. CONTADOR DE VISITAS (NUEVO)
+    # ---------------------------------------------------------
+    visitas = 0
+    try:
+        # Usamos una colección aparte para no mezclar con las denuncias
+        stats_col = db['estadisticas']
+        
+        # Incrementamos en 1 el contador. 
+        # 'upsert=True' crea el documento la primera vez que se ejecuta.
+        stats_col.update_one(
+            {'_id': 'contador_home'},   # ID único para identificar este dato
+            {'$inc': {'cantidad': 1}},  # Instrucción para sumar 1
+            upsert=True
+        )
+        
+        # Recuperamos el número actualizado para mostrarlo
+        dato_visitas = stats_col.find_one({'_id': 'contador_home'})
+        if dato_visitas:
+            visitas = dato_visitas.get('cantidad', 0)
+            
+    except Exception as e:
+        print(f"⚠️ Error en contador de visitas: {e}")
+        # Si falla, visitas se queda en 0 y la página sigue cargando normal
+
+    # ---------------------------------------------------------
+    # 2. TU CÓDIGO ORIGINAL (Métricas de Denuncias)
+    # ---------------------------------------------------------
     # Total de registros (filas del dataset)
     total_registros = col.count_documents({})
 
@@ -140,11 +168,15 @@ def index():
     # Años disponibles en la base
     anios = sorted(col.distinct("ANIO"))
 
+    # ---------------------------------------------------------
+    # 3. RETORNO A LA PLANTILLA
+    # ---------------------------------------------------------
     return render_template(
         "index.html",
         total_registros=total_registros,
         total_denuncias=total_denuncias,
-        anios=anios
+        anios=anios,
+        visitas=visitas  # <--- ¡AQUÍ ENVIAMOS LA NUEVA VARIABLE!
     )
 
 

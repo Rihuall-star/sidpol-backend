@@ -1,58 +1,151 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - Analítica de Denuncias{% endblock %}
+{% block title %}Dashboard - SIDPOL{% endblock %}
 
 {% block content %}
 
-<h1 class="mb-4 text-center">Analítica de Denuncias Policiales (Perú)</h1>
-
-<div class="row mb-4">
-
-    <!-- Tarjeta 1: Registros en MongoDB -->
-    <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Registros en MongoDB</h5>
-                <p class="display-6">{{ total_registros | default(0) }}</p>
-                <p class="text-muted">Filas del dataset cargadas.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tarjeta 2: Total de denuncias -->
-    <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Total de denuncias (cantidad)</h5>
-                <p class="display-6">{{ total_denuncias | default(0) }}</p>
-                <p class="text-muted">Suma de la columna <span class="text-danger">cantidad</span>.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tarjeta 3: Años disponibles -->
-    <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Años disponibles</h5>
-                {% if anios %}
-                    {% for anio in anios %}
-                        <span class="badge bg-primary me-1">{{ anio }}</span>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">Sin datos.</p>
-                {% endif %}
-                <p class="mt-2 text-muted">Años con datos en la base.</p>
-            </div>
-        </div>
-    </div>
-
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800" style="font-weight: 600;">Panel de Control Estratégico</h1>
+    <span class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-calendar fa-sm text-white-50"></i> Reporte Actualizado
+    </span>
 </div>
 
-<p class="text-muted">
-    Esta es la versión inicial de la aplicación. Desde el menú superior puedes acceder al resumen anual,
-    al análisis por departamentos, modalidades delictivas, trimestres y la predicción de denuncias para 2026,
-    además del Chat IA.
-</p>
+<div class="row">
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2" style="border-left: 5px solid #10b981;">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Tráfico del Sistema
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ visitas | default(0) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-eye fa-2x text-gray-300" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2" style="border-left: 5px solid #ef4444;">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Total Denuncias
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_denuncias | default(0) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-triangle fa-2x text-gray-300" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2" style="border-left: 5px solid #4e73df;">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Registros (Data Lake)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_registros | default(0) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-database fa-2x text-gray-300" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2" style="border-left: 5px solid #f59e0b;">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Cobertura Temporal
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if anios %}
+                                {{ anios|length }} Años
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-alt fa-2x text-gray-300" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 bg-gradient-primary">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-rocket me-2"></i>Accesos Rápidos</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('prediccion_2026') }}" class="btn btn-primary btn-icon-split align-items-center justify-content-start p-3">
+                        <span class="icon text-white-50 me-3"><i class="fas fa-brain fa-lg"></i></span>
+                        <span class="text">Ver Proyección Criminalidad 2026</span>
+                    </a>
+                    <a href="/riesgo-modalidad" class="btn btn-success btn-icon-split align-items-center justify-content-start p-3">
+                        <span class="icon text-white-50 me-3"><i class="fas fa-shield-virus fa-lg"></i></span>
+                        <span class="text">Simulador de Riesgo Táctico</span>
+                    </a>
+                    <a href="/agente-estrategico" class="btn btn-info btn-icon-split align-items-center justify-content-start p-3">
+                        <span class="icon text-white-50 me-3"><i class="fas fa-user-secret fa-lg"></i></span>
+                        <span class="text">Consultar Agente Estratega IA</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle me-2"></i>Estado del Sistema</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <img class="img-fluid px-3 px-sm-4 mt-3 mb-4" style="width: 15rem;" src="{{ url_for('static', filename='img/logo_sidpol.png') }}" alt="SIDPOL Logo" onerror="this.style.display='none'">
+                </div>
+                <p>Bienvenido al <strong>Sistema de Inteligencia Policial (SIDPOL)</strong>. Esta plataforma utiliza algoritmos de Machine Learning y la potencia de Gemini 2.5 Flash para asistir en la toma de decisiones.</p>
+                <p class="mb-0">Datos disponibles actualmente:</p>
+                <div class="mt-2">
+                    {% if anios %}
+                        {% for anio in anios %}
+                            <span class="badge bg-secondary me-1">{{ anio }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">No hay datos cargados.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
