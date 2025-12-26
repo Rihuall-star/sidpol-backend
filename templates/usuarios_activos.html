@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Monitor de Usuarios - SIDPOL{% endblock %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-network-wired me-2"></i>Centro de Monitoreo
+    </h1>
+    <button onclick="window.location.reload();" class="btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-sync-alt fa-sm text-white-50"></i> Refrescar Datos
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow mb-4 border-left-success">
+            <div class="card-header py-3 bg-success text-white">
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-signal me-2"></i>En Vivo (Activos < 5 min)</h6>
+            </div>
+            <div class="card-body">
+                {% if online %}
+                    <ul class="list-group list-group-flush">
+                        {% for u in online %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-user-circle text-success me-2 fa-lg"></i>
+                                <span class="font-weight-bold text-dark">{{ u.username }}</span>
+                            </div>
+                            <span class="badge bg-success rounded-pill animate__animated animate__pulse animate__infinite">Online</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-bed fa-2x mb-2" style="opacity: 0.5;"></i>
+                        <p class="mb-0">No hay actividad reciente.</p>
+                        <small>(Navega por el menú para aparecer aquí)</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow mb-4 border-left-primary">
+            <div class="card-header py-3 bg-primary text-white">
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-history me-2"></i>Bitácora de Accesos</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Fecha</th>
+                                <th>IP Origen</th>
+                                <th>Evento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in historial %}
+                            <tr>
+                                <td class="font-weight-bold text-dark">{{ log.usuario }}</td>
+                                <td>
+                                    {{ log.fecha_str | default(log.fecha) }}
+                                </td>
+                                <td class="text-muted small">
+                                    {{ log.ip | default('Desconocida') }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info text-dark">
+                                        <i class="fas fa-key me-1"></i> {{ log.evento }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Aún no hay registros en la base de datos.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
