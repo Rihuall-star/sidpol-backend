@@ -32,7 +32,7 @@ from ml_llm import (
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "secreto_seguro")
+app.secret_key = os.environ["SECRET_KEY"]
 
 # ================================
 #  CONFIGURACIÓN FLASK-LOGIN
