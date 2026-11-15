@@ -9,6 +9,9 @@ from pymongo import ReturnDocument
 # Límite diario de consultas a Gemini para usuarios con rol "invitado" (cuenta demo).
 # Se puede ajustar con la variable de entorno LIMITE_IA_INVITADO.
 LIMITE_IA_INVITADO = int(os.getenv("LIMITE_IA_INVITADO", "30"))
+
+# Modelo de Gemini. Se puede cambiar sin tocar el código con la variable GEMINI_MODEL.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 MENSAJE_LIMITE = (
     "La cuenta demo alcanzó su límite diario de consultas a la IA. "
     "Vuelve mañana o explora el resto de los módulos del dashboard."
@@ -58,13 +61,13 @@ def configurar_gemini():
 
 def generar_respuesta(prompt):
     """
-    Función maestra para Gemini 2.5 Flash
+    Función maestra para Gemini (modelo configurable con GEMINI_MODEL)
     """
     if cuota_ia_agotada():
         return MENSAJE_LIMITE
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        response = model.generate_content(prompt, request_options={"timeout": 60})
         return response.text
     except Exception as e:
         print(f"❌ Error Gemini: {str(e)}", file=sys.stderr)

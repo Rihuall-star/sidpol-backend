@@ -4,8 +4,8 @@ import google.generativeai as genai
 # Configurar Gemini con la API KEY del .env
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Modelo correcto según tu cuenta → ESTE FUNCIONA
-MODEL_NAME = "gemini-2.5-flash"
+# Modelo de Gemini (configurable con la variable de entorno GEMINI_MODEL)
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 def preguntar_gemini(mensaje, contexto=None):
     """
