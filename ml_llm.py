@@ -1,6 +1,47 @@
 import google.generativeai as genai
 import os
 import sys
+from datetime import date
+
+from flask import session, has_request_context
+from pymongo import ReturnDocument
+
+# Límite diario de consultas a Gemini para usuarios con rol "invitado" (cuenta demo).
+# Se puede ajustar con la variable de entorno LIMITE_IA_INVITADO.
+LIMITE_IA_INVITADO = int(os.getenv("LIMITE_IA_INVITADO", "30"))
+MENSAJE_LIMITE = (
+    "La cuenta demo alcanzó su límite diario de consultas a la IA. "
+    "Vuelve mañana o explora el resto de los módulos del dashboard."
+)
+
+
+def cuota_ia_agotada():
+    """Cuenta una consulta y devuelve True si el usuario invitado superó su límite del día.
+
+    El contador se guarda en MongoDB (por usuario y por día), así que no se
+    reinicia al cerrar sesión. Los roles admin y analista no tienen límite.
+    """
+    if not has_request_context() or session.get("rol") != "invitado":
+        return False
+    try:
+        from ml_utils import db  # import diferido para evitar dependencias circulares
+        hoy = date.today().isoformat()
+        doc = db["usuarios"].find_one_and_update(
+            {"username": session.get("user")},
+            [{"$set": {
+                "ia_fecha": hoy,
+                "ia_usadas": {"$cond": [
+                    {"$eq": ["$ia_fecha", hoy]},
+                    {"$add": [{"$ifNull": ["$ia_usadas", 0]}, 1]},
+                    1,
+                ]},
+            }}],
+            return_document=ReturnDocument.AFTER,
+        )
+        return doc is None or doc.get("ia_usadas", 0) > LIMITE_IA_INVITADO
+    except Exception as e:
+        print(f"Error verificando cuota IA: {e}", file=sys.stderr)
+        return True  # ante la duda, no gastar cuota
 
 def configurar_gemini():
     # Usará la llave nueva que configuraste en Render
@@ -19,6 +60,8 @@ def generar_respuesta(prompt):
     """
     Función maestra para Gemini 2.5 Flash
     """
+    if cuota_ia_agotada():
+        return MENSAJE_LIMITE
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)

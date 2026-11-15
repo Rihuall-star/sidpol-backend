@@ -191,6 +191,7 @@ def index():
 # ============================================================
 @app.route('/usuarios-activos')
 @login_required
+@admin_required
 def usuarios_activos():
     try:
         # 1. Usuarios Online (Activos en los últimos 5 min)
