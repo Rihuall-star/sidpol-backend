@@ -1,5 +1,7 @@
 # SIDPOL: Análisis y proyección delictiva en el Perú con Machine Learning e IA generativa
 
+[![CI](https://github.com/Rihuall-star/sidpol-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Rihuall-star/sidpol-backend/actions/workflows/ci.yml)
+
 Plataforma web de inteligencia de datos sobre las **denuncias policiales del Perú (SIDPOL, enero 2018 – octubre 2025, más de 337,000 registros)**. Combina analítica descriptiva, machine learning y un asistente de IA generativa que responde preguntas en lenguaje natural consultando la base de datos.
 
 > Proyecto académico: curso *Tecnologías Emergentes en Inteligencia Artificial*, Maestría en Ingeniería de Sistemas e Informática, Universidad Nacional Mayor de San Marcos (2025).
@@ -48,9 +50,10 @@ CSV SIDPOL ──► ETL (Pandas) ──► MongoDB ──► Flask (lógica + M
 | Datos | MongoDB (PyMongo, Aggregation Framework) |
 | Backend | Python 3.10, Flask, Flask-Login, Gunicorn |
 | ML | Scikit-learn (K-Means, regresión lineal), Pandas, NumPy |
-| IA generativa | Google Gemini API (Gemini 3.5 Flash) |
+| IA generativa | Google Gemini API (Gemini 3.5 Flash, SDK `google-genai`) |
 | Frontend | Jinja2, Bootstrap 5, Chart.js, Plotly.js, Highcharts Maps |
 | Despliegue | Render + MongoDB Atlas |
+| Calidad y seguridad | pytest, mongomock, GitHub Actions, pip-audit, CodeQL, Dependabot |
 
 ## 📁 Estructura
 
@@ -79,11 +82,14 @@ La aplicación aplica controles alineados con **OWASP Top 10 (2021)**:
 | **A03** Inyección / XSS | Consultas a MongoDB con parámetros tipados; escape de HTML en las respuestas del chat antes de insertarlas en la página; plantillas Jinja2 con autoescape. |
 | **A04** Diseño inseguro | Cuenta demo de solo lectura con **límite diario de consultas a la IA**, guardado en la base de datos. |
 | **A05** Configuración incorrecta | Cabeceras **Content-Security-Policy**, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`; secretos solo por variables de entorno (la app no arranca sin `SECRET_KEY`). |
-| **A06** Componentes vulnerables | **Dependabot** semanal para dependencias de Python. |
+| **A06** Componentes vulnerables | Dependencias mínimas y con versión fija; **pip-audit** en cada push (CI) y **Dependabot** semanal; análisis estático con **CodeQL**; **secret scanning + push protection** en GitHub. |
 | **A07** Fallas de autenticación | **Rate limiting** en el login (5 intentos por minuto y 30 por hora por IP); sesión nueva en cada login (contra la fijación de sesión); cookies `HttpOnly` y `SameSite=Lax`; expiración de la sesión a las 8 horas. |
+| **LLM01** Prompt injection (OWASP Top 10 para LLM) | Reglas del asistente enviadas como *system instruction*, separadas de la pregunta del usuario; prompt limitado a 500 caracteres; respuestas basadas solo en los datos entregados. |
 | **A09** Fallas de registro y monitoreo | Auditoría de inicios de sesión **y de intentos fallidos**, con la IP real del visitante (`ProxyFix` detrás del proxy de Render). |
 
-**Pendiente (próximas mejoras):** CSP basada en *nonces* para eliminar `'unsafe-inline'`, análisis estático con CodeQL y pruebas automatizadas en GitHub Actions.
+**Pruebas automatizadas:** 16 pruebas con `pytest` (CSRF, rate limiting, roles, cabeceras, sesión, límite de IA, escape XSS y prompt injection) se ejecutan en **GitHub Actions** en cada push, junto con `pip-audit`.
+
+**Pendiente:** CSP basada en *nonces* para eliminar `'unsafe-inline'`.
 
 ## 🚀 Ejecución local
 
@@ -111,6 +117,13 @@ Carga los datos y levanta la aplicación:
 ```bash
 python etl_carga_mongo.py
 flask --app app run
+```
+
+Pruebas (usan una base en memoria, no tocan MongoDB ni Gemini):
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests -v
 ```
 
 ## ⚠️ Limitaciones y trabajo futuro

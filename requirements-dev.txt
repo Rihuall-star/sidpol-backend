@@ -1,0 +1,5 @@
+# Herramientas de desarrollo y CI (no se instalan en Render)
+-r requirements.txt
+pytest==9.2.0
+mongomock==4.3.0
+pip-audit==2.10.1
