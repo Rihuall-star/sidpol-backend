@@ -9,10 +9,9 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 
 > Cuenta de solo lectura con un límite diario de consultas a la IA. El servidor gratuito puede tardar unos 30 segundos en despertar la primera vez.
 
-<!-- Reemplaza estas rutas por tus capturas, por ejemplo en docs/img/ -->
-| Dashboard | Clustering de riesgo | Asistente IA |
+| Dashboard | Radar de riesgo (K-Means) | Proyección 2026 |
 |---|---|---|
-| ![Dashboard](docs/img/dashboard.png) | ![Clusters](docs/img/clusters.png) | ![Chat IA](docs/img/chat.png) |
+| ![Dashboard](docs/img/dashboard.png) | ![Clusters](docs/img/clusters.png) | ![Proyección 2026](docs/img/prediccion.png) |
 
 ---
 
@@ -32,7 +31,7 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 
 ## 📊 Hallazgos principales
 - **La extorsión crece de forma sostenida desde 2021**, mientras que los homicidios mantienen un crecimiento moderado.
-- **Lima, La Libertad y Piura** forman el cluster de riesgo crítico.
+- **Lima Metropolitana** queda sola en el cluster de riesgo crítico (más de 2.3 millones de denuncias); Arequipa, Lambayeque, La Libertad y Piura encabezan el nivel medio.
 - **La Costa concentra más del 60%** de las denuncias del país.
 - Corregir el conteo (suma de `cantidad` frente a conteo de filas) mostró una incidencia **mayor a la que se obtiene con un conteo simple**.
 
@@ -103,7 +102,7 @@ flask --app app run
 - Las proyecciones son **exploratorias** y con fines académicos, no pronósticos oficiales.
 
 ## 📄 Fuente de datos
-Dataset abierto de denuncias policiales (SIDPOL), publicado en la Plataforma Nacional de Datos Abiertos del Perú. [Agregar el enlace exacto al dataset.]
+Dataset abierto de denuncias policiales (SIDPOL), publicado en la Plataforma Nacional de Datos Abiertos del Perú. (datosabiertos.gob.pe).
 
 ## 👤 Autor
 **Ricardo Huamaní Allcca**: Ingeniero de Redes y Ciberseguridad, maestrando en la UNMSM.
