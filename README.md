@@ -58,17 +58,15 @@ CSV SIDPOL ──► ETL (Pandas) ──► MongoDB ──► Flask (lógica + M
 ## 📁 Estructura
 
 ```
-app.py                 # Rutas Flask, autenticación y roles
-etl_carga_mongo.py     # Carga y normalización del CSV en MongoDB
-mongo_queries.py       # Pipelines de agregación
-ml_cluster.py          # Clustering K-Means
-ml_utils.py            # Series mensuales y regresión lineal
-ml_riesgo.py           # Riesgo por modalidad
-chat_logic.py          # Construcción del contexto RAG
-gemini_client.py       # Cliente de la API de Gemini
-regiones_peru.py       # Clasificación Costa / Sierra / Selva
-poblacion_peru.py      # Población para tasas per cápita
-templates/  static/    # Interfaz web
+app.py               # Rutas Flask, autenticación, roles y controles de seguridad
+ml_utils.py          # Conexión a MongoDB, series mensuales, regresión lineal y modelo de riesgo
+ml_cluster.py        # Clustering K-Means de departamentos
+ml_llm.py            # Cliente de Gemini (google-genai), agentes y límite de IA para la cuenta demo
+mongo_queries.py     # Pipelines de agregación de MongoDB
+etl_carga_mongo.py   # Carga y normalización inicial del CSV en MongoDB
+templates/  static/  # Interfaz web (Jinja2, Bootstrap, Chart.js, Plotly, Highcharts)
+tests/               # Pruebas automatizadas (pytest + mongomock)
+.github/             # CI (GitHub Actions) y Dependabot
 ```
 
 ## 🔐 Seguridad
