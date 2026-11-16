@@ -3,6 +3,7 @@
 # ============================================================
 import os
 import re
+from urllib.parse import urlparse
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -109,7 +110,22 @@ def error_csrf(e):
     if request.path == "/chat-ia":
         return jsonify({"respuesta": "Tu sesión expiró. Recarga la página e intenta de nuevo."}), 400
     flash("La sesión del formulario expiró. Intenta de nuevo.", "error")
-    return redirect(request.referrer or url_for("login"))
+    return redirect(_url_segura(request.referrer) or url_for("login"))
+
+
+def _url_segura(url):
+    """Devuelve la ruta solo si apunta a este mismo sitio (evita redirecciones abiertas)."""
+    if not url:
+        return None
+    destino = urlparse(url)
+    if destino.netloc and destino.netloc != request.host:
+        return None
+    if destino.scheme and destino.scheme not in ("http", "https"):
+        return None
+    ruta = destino.path or "/"
+    if not ruta.startswith("/") or ruta.startswith("//"):
+        return None
+    return ruta + (f"?{destino.query}" if destino.query else "")
 
 
 @app.errorhandler(429)
@@ -764,4 +780,5 @@ def crear_usuario():
     return render_template('crear_usuario.html')
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # El modo debug solo se activa explícitamente en local (nunca en producción)
+    app.run(debug=os.getenv("FLASK_DEBUG") == "1")

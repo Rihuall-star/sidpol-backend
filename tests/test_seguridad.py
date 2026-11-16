@@ -190,3 +190,14 @@ def test_estratega_usa_cache_diaria(client, base_limpia, monkeypatch):
         html = client.get("/agente-estrategico").get_data(as_text=True)
         assert "<strong>Diagnóstico</strong>" in html
     assert len(llamadas) == 1  # solo la primera visita del día llama a Gemini
+
+
+def test_csrf_no_redirige_a_sitios_externos(client):
+    """Si el token CSRF falla, solo se vuelve a una página del mismo sitio (CodeQL: open redirect)."""
+    r = client.post("/login", data={"username": "x", "password": "y"},
+                    headers={"Referer": "https://sitio-malicioso.com/phishing"})
+    assert r.status_code == 302
+    assert "sitio-malicioso" not in r.headers["Location"]
+    r = client.post("/login", data={"username": "x", "password": "y"},
+                    headers={"Referer": "http://localhost/delitos"})
+    assert r.headers["Location"].endswith("/delitos")
