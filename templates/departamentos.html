@@ -71,9 +71,13 @@
             }
         },
         colorAxis: {
-            min: 0,
-            minColor: '#E6F3FF', 
-            maxColor: '#003366', 
+            // Escala logarítmica: Lima Metropolitana (más de 2 millones) no "aplana" al resto del país
+            type: 'logarithmic',
+            minColor: '#E6F3FF',
+            maxColor: '#003366',
+        },
+        tooltip: {
+            pointFormat: '{point.name}: <b>{point.value:,.0f}</b> denuncias'
         },
         series: [{
             data: data,

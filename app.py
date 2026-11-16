@@ -319,13 +319,16 @@ def departamentos():
     # DICCIONARIO MAESTRO MAPA (Highcharts codes)
     map_mapping = {
         # --- LAS LIMAS (SOLUCIÓN DEL PROBLEMA) ---
-        "LIMA METROPOLITANA": "pe-li",       # Código 'pe-li': Lima Ciudad (Azul Oscuro)
-        "REGION LIMA": "pe-lr",              # Código 'pe-lr': Lima Provincias (Donut alrededor)
-        "LIMA": "pe-li",                     # Respaldo por si aparece solo "LIMA"
-        
+        # Códigos verificados en @highcharts/map-collection 2.3.0 (countries/pe/pe-all)
+        "LIMA METROPOLITANA": "pe-145",      # 'Lima Province' (distrito capital)
+        "REGION LIMA": "pe-lr",              # Lima Provincias (alrededor de la capital)
+        "LIMA": "pe-145",                    # Respaldo por si aparece solo "LIMA"
+
         # --- EL CALLAO ---
-        "PROV. CONST. DEL CALLAO": "pe-cl",  # Callao tiene su propio código
-        "CALLAO": "pe-cl",
+        # Ojo: en pe-all, 'pe-cl' se llama "Callao" pero sus coordenadas (-15.2, -70.0) son de PUNO.
+        # El Callao real es 'pe-3341' (-12.09, -77.22).
+        "PROV. CONST. DEL CALLAO": "pe-3341",
+        "CALLAO": "pe-3341",
 
         # --- EL RESTO DEL PERÚ ---
         "AMAZONAS": "pe-am",
@@ -346,25 +349,39 @@ def departamentos():
         "MOQUEGUA": "pe-mq",
         "PASCO": "pe-pa",
         "PIURA": "pe-pi",
-        "PUNO": "pe-pu",
+        "PUNO": "pe-cl",                     # polígono de Puno (mal etiquetado como "Callao" en pe-all)
         "SAN MARTIN": "pe-sm",
         "TACNA": "pe-ta",
         "TUMBES": "pe-tu",
         "UCAYALI": "pe-uc"
     }
 
+    # Nombre que se muestra en el mapa (corrige etiquetas erróneas del archivo de Highcharts)
+    nombres_visibles = {
+        "LIMA METROPOLITANA": "Lima Metropolitana",
+        "REGION LIMA": "Lima Provincias",
+        "PROV. CONST. DEL CALLAO": "Callao",
+    }
+
     data_mapa = []
+
+    # Registros sin departamento (DPTO_HECHO_NEW vacío) no se pueden ubicar en el mapa
+    data_raw = [d for d in data_raw if d.get("_id")]
     top_5 = data_raw[:5]
 
     for d in data_raw:
         # Limpieza: Mayúsculas y sin espacios a los lados
         nombre_bd = str(d["_id"]).strip().upper()
-        
-        # Mapeo exacto
-        code = map_mapping.get(nombre_bd)
-        
-        if code:
-            data_mapa.append([code, d["total"]])
+
+        # Mapeo exacto (un departamento puede ocupar más de un polígono)
+        codes = map_mapping.get(nombre_bd)
+        if isinstance(codes, str):
+            codes = [codes]
+
+        if codes:
+            nombre = nombres_visibles.get(nombre_bd, nombre_bd.title())
+            for code in codes:
+                data_mapa.append({"hc-key": code, "value": d["total"], "name": nombre})
         else:
             # Esto nos ayudará a ver en los logs de Render si algún nombre sigue fallando
             print(f"⚠️ NO MAPEADO EN MAPA: {nombre_bd}")
@@ -522,8 +539,10 @@ def regiones():
     acumulado = {"Costa": 0, "Sierra": 0, "Selva": 0}
     
     for d in datos:
+        if not d.get("_id"):
+            continue  # registros sin departamento (0 denuncias): no tienen región
         nombre_bd = str(d["_id"]).strip().upper()
-        
+
         # Clasificación directa
         region = mapa_regiones.get(nombre_bd)
         
