@@ -79,48 +79,138 @@ def preparar_mensual(col, modalidad=None):
 
     return pd.DataFrame(datos)
 
+# ==========================================
+# 2. PROYECCIÓN 2026 CON SARIMA
+# ==========================================
+MESES_TXT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+SARIMA_ORDEN = (0, 1, 1)
+SARIMA_ESTACIONAL = (0, 1, 1, 12)   # "airline model" de Box-Jenkins
+# Pandemia: caída y rebote atípicos. Se modela con un indicador por mes (intervención tipo pulso),
+# así esos meses no inflan la varianza del modelo ni distorsionan la tendencia.
+COVID_INICIO, COVID_FIN = "2020-03", "2021-02"
+HORIZONTE_VALIDACION = 12            # meses que se reservan para medir el error
+
+_cache_proyeccion = {"clave": None, "resultado": None}
+
+
+def _mape(reales, predichos):
+    reales, predichos = np.asarray(reales, float), np.asarray(predichos, float)
+    return float(np.mean(np.abs((reales - predichos) / reales)) * 100)
+
+
+def _ajustar_sarima(serie, exog):
+    from statsmodels.tsa.statespace.sarimax import SARIMAX  # import diferido (carga pesada)
+    return SARIMAX(serie, exog=exog, order=SARIMA_ORDEN, seasonal_order=SARIMA_ESTACIONAL,
+                   enforce_stationarity=False, enforce_invertibility=False).fit(disp=False)
+
+
+def proyeccion_2026(col):
+    """
+    Proyecta las denuncias mensuales de 2026 con SARIMA(0,1,1)(0,1,1)12 e indicadores de
+    intervención para los meses de la pandemia (mar-2020 a feb-2021). Valida el modelo con los
+    últimos 12 meses reales (MAPE) y lo compara con la regresión lineal que se usaba antes.
+    """
+    import warnings
+
+    df = preparar_mensual(col)
+    if df.empty or len(df) < 36:
+        return None
+
+    serie = pd.Series(
+        df["total"].astype(float).values,
+        index=pd.period_range(f"{int(df.iloc[0]['anio'])}-{int(df.iloc[0]['mes']):02d}", periods=len(df), freq="M"),
+    )
+    clave = (len(serie), float(serie.iloc[-1]))
+    if _cache_proyeccion["clave"] == clave:
+        return _cache_proyeccion["resultado"]
+
+    meses_covid = pd.period_range(COVID_INICIO, COVID_FIN, freq="M")
+
+    def covid(indice):
+        return pd.DataFrame({str(p): (indice == p).astype(float) for p in meses_covid}, index=indice)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # --- 1) Validación: entrenar sin los últimos 12 meses y predecirlos ---
+        H = HORIZONTE_VALIDACION
+        entreno, prueba = serie[:-H], serie[-H:]
+        val = _ajustar_sarima(entreno, covid(entreno.index))
+        pred_val = val.get_forecast(H, exog=covid(prueba.index)).predicted_mean
+        mape_sarima = _mape(prueba.values, pred_val.values)
+
+        t = np.arange(len(serie)).reshape(-1, 1)
+        lineal = LinearRegression().fit(t[:-H], entreno.values)
+        mape_lineal = _mape(prueba.values, lineal.predict(t[-H:]))
+
+        # --- 2) Modelo final con toda la serie y pronóstico hasta dic-2026 ---
+        modelo = _ajustar_sarima(serie, covid(serie.index))
+        ultimo = serie.index[-1]
+        pasos = (2026 - ultimo.year) * 12 + (12 - ultimo.month)
+        futuro_idx = pd.period_range(ultimo + 1, periods=pasos, freq="M")
+        fc = modelo.get_forecast(pasos, exog=covid(futuro_idx))
+        media = fc.predicted_mean.clip(lower=0)
+        ic = fc.conf_int(alpha=0.05).clip(lower=0)   # banda mensual (95%)
+
+        # IC del TOTAL anual: no se pueden sumar los límites mensuales (los errores están
+        # correlacionados). Se simulan trayectorias del modelo y se toman percentiles del total.
+        es_2026 = np.array([p.year == 2026 for p in futuro_idx])
+        sims = modelo.simulate(nsimulations=pasos, repetitions=1000, anchor="end",
+                               exog=covid(futuro_idx).values,
+                               rng=np.random.default_rng(42))
+        sims = np.asarray(sims).reshape(pasos, -1).clip(min=0)
+        totales_sim = sims[es_2026].sum(axis=0)
+        total_min, total_max = np.percentile(totales_sim, [2.5, 97.5])
+
+    pred_2026 = media[es_2026]
+    hist = serie[-24:]
+
+    resultado = {
+        "modelo": "SARIMA(0,1,1)(0,1,1)₁₂ con intervención COVID-19",
+        "total_2026": int(pred_2026.sum()),
+        "total_2026_min": int(total_min),
+        "total_2026_max": int(total_max),
+        "total_2025_real": int(serie[[p.year == 2025 for p in serie.index]].sum()),
+        "ultimo_mes": f"{MESES_TXT[ultimo.month - 1]} {ultimo.year}",
+        "mape_sarima": round(mape_sarima, 1),
+        "mape_lineal": round(mape_lineal, 1),
+        "meses_2026": MESES_TXT,
+        "pred_2026": [int(v) for v in pred_2026.values],
+        # Para el gráfico: últimos 24 meses reales + pronóstico completo
+        "graf_etiquetas": [f"{MESES_TXT[p.month - 1]} {str(p.year)[2:]}" for p in list(hist.index) + list(futuro_idx)],
+        "graf_real": [int(v) for v in hist.values] + [None] * pasos,
+        "graf_pred": [None] * (len(hist) - 1) + [int(hist.iloc[-1])] + [int(v) for v in media.values],
+        "graf_min": [None] * len(hist) + [int(v) for v in ic.iloc[:, 0].values],
+        "graf_max": [None] * len(hist) + [int(v) for v in ic.iloc[:, 1].values],
+        "historico_valores": [int(v) for v in serie[-12:].values],
+        "historico_etiquetas": [f"{MESES_TXT[p.month - 1]} {p.year}" for p in serie.index[-12:]],
+    }
+    _cache_proyeccion.update(clave=clave, resultado=resultado)
+    return resultado
+
+
 def predecir_total_2026(col):
     """
-    Retorna 5 valores: total, etiquetas, predicciones, historico_valores, historico_anios
+    Compatibilidad: retorna total, etiquetas, predicciones, historico_valores, historico_etiquetas.
     """
-    df = preparar_mensual(col)
-    
-    if df.empty or len(df) < 12:
+    r = proyeccion_2026(col)
+    if not r:
         return 0, [], [], [], []
-
-    # Crear índice temporal continuo
-    df['time_index'] = df['anio'] + (df['mes'] - 1) / 12.0
-    
-    X = df[['time_index']]
-    y = df['total']
-    
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    # Generar proyección para 2026
-    meses_txt = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-    futuro = np.array([2026 + (m-1)/12.0 for m in range(1, 13)]).reshape(-1, 1)
-    X_futuro = pd.DataFrame(futuro, columns=['time_index'])
-    
-    predicciones = model.predict(X_futuro)
-    predicciones = np.maximum(predicciones, 0) # Evitar negativos
-    
-    total_2026 = int(predicciones.sum())
-    
-    return total_2026, meses_txt, predicciones.tolist(), df['total'].tail(12).tolist(), df['anio'].tail(12).tolist()
+    return r["total_2026"], r["meses_2026"], r["pred_2026"], r["historico_valores"], r["historico_etiquetas"]
 
 def obtener_contexto_ia(col):
-    total_2026, _, _, historico_val, historico_anio = predecir_total_2026(col)
-    
-    if total_2026 == 0:
+    r = proyeccion_2026(col)
+    if not r:
         return 0, "Datos insuficientes"
-    
-    texto_contexto = ""
-    limit = min(3, len(historico_val))
-    for i in range(1, limit + 1):
-        texto_contexto += f"[{historico_anio[-i]}: {int(historico_val[-i])} casos] "
-            
-    return total_2026, texto_contexto
+
+    ultimos = ", ".join(f"{e}: {v:,}" for e, v in zip(r["historico_etiquetas"][-6:], r["historico_valores"][-6:]))
+    texto_contexto = (
+        f"Últimos 6 meses reales: {ultimos}. "
+        f"Total real 2025 (hasta {r['ultimo_mes']}): {r['total_2025_real']:,}. "
+        f"Proyección 2026 ({r['modelo']}): {r['total_2026']:,} "
+        f"(IC 95%: {r['total_2026_min']:,} – {r['total_2026_max']:,}); "
+        f"error de validación (MAPE) {r['mape_sarima']}%."
+    )
+    return r["total_2026"], texto_contexto
 
 # ==========================================
 # 3. FUNCIONES DEL SIMULADOR DE RIESGO (FALTABAN ESTAS)

@@ -17,5 +17,6 @@ pandas==2.2.3
 numpy==2.3.5
 
 # Machine Learning e IA
-scikit-learn==1.5.2
+scikit-learn==1.9.1
+statsmodels==0.15.0
 google-genai==3.3.0

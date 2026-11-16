@@ -1,28 +1,37 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{% block title %}Estratega IA - SIDPOL{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow border-0 p-4 bg-light">
-        <h2 class="text-dark"><i class="fas fa-brain"></i> Agente Estratégico: Análisis Predictivo</h2>
-        <hr>
-        <div class="row align-items-center">
-            <div class="col-md-6 text-center">
-                <div class="p-4 bg-white rounded shadow-sm">
-                    <h5>Impacto Esperado (2026)</h5>
-                    <h1 class="text-primary">{{ total }}</h1>
-                    <p class="text-muted">Casos Totales Estimados</p>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card border-primary p-3">
-                    <h5 class="text-primary font-italic">"Análisis Estratégico de la IA"</h5>
-                    <p class="lead" id="analisis-ia">
-                        {{ analisis }}
-                    </p>
-                </div>
+<div class="mb-4">
+    <h2 class="fw-bold mb-1"><i class="fas fa-chess-knight text-primary me-2"></i>Agente Estratégico</h2>
+    <p class="text-muted mb-0">Análisis generado por IA a partir de la proyección 2026 y la tendencia reciente de denuncias.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+            <div class="card-body">
+                <div class="text-uppercase small text-primary fw-semibold">Impacto esperado 2026</div>
+                <div class="display-6 fw-bold">{{ total }}</div>
+                <div class="small text-muted">Denuncias proyectadas (modelo SARIMA)</div>
+                <a href="{{ url_for('prediccion_2026') }}" class="btn btn-sm btn-outline-primary mt-3">
+                    <i class="fas fa-chart-line me-1"></i> Ver proyección detallada
+                </a>
             </div>
         </div>
-        <div class="mt-4 alert alert-secondary border-0">
-            <strong>Recomendación Estratégica:</strong> Basado en el volumen de {{ total }} incidentes, se recomienda ajustar el presupuesto operativo anual en un 15% para cubrir las zonas críticas detectadas por el Agente Logístico.
+    </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">
+                <i class="fas fa-robot me-1 text-success"></i> Análisis estratégico (Gemini)
+            </div>
+            <div class="card-body">
+                <div class="lh-lg">{{ analisis | formato_ia }}</div>
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                Texto generado automáticamente por IA: úsalo como apoyo, no como recomendación oficial.
+            </div>
         </div>
     </div>
 </div>

@@ -25,16 +25,17 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 | **Clustering K-Means** | Agrupa los departamentos por perfil de incidencia por modalidad (en porcentajes, para que el tamaño de Lima no sesgue el resultado) en 3 niveles de riesgo: bajo, medio y crítico. |
 | **Análisis trimestral** | Compara la evolución de extorsión y homicidio en departamentos clave con el *Aggregation Framework* de MongoDB. |
 | **Análisis regional y per cápita** | Distribución por Costa, Sierra y Selva, y tasas ajustadas por población. |
-| **Proyección 2026** | Regresión lineal sobre la serie mensual para estimar la tendencia del 2.º semestre de 2026, total y por modalidad. |
+| **Proyección 2026** | Modelo **SARIMA(0,1,1)(0,1,1)₁₂** con intervención COVID-19, validado con los últimos 12 meses reales (**MAPE 6.0%** frente a 18.7% de la regresión lineal anterior) e intervalos de confianza por simulación. |
 | **Asistente RAG (Gemini)** | Chat que consulta MongoDB antes de responder, para que la respuesta se base en los datos y no en el conocimiento general del modelo. |
 | **Agentes** | Un *agente estratégico* genera planes de acción a partir de la proyección y un *agente logístico* asigna recursos según los clusters. |
 | **Mapas de calor** | Visualización geoespacial de las zonas críticas (Highcharts Maps). |
 | **Autenticación y roles** | Login con Flask-Login, contraseñas con hash (Werkzeug), rutas de administración y auditoría protegidas por rol, y límite diario de consultas a la IA para la cuenta demo. |
 
 ## 📊 Hallazgos principales
-- **La extorsión crece de forma sostenida desde 2021**, mientras que los homicidios mantienen un crecimiento moderado.
+- **Cambio de tendencia:** las denuncias alcanzaron su máximo en 2023 (1,042,703) y vienen bajando desde mediados de 2024. El modelo SARIMA proyecta **~654 mil denuncias en 2026** (IC 95%: 433k – 884k); la regresión lineal anterior proyectaba más de 1 millón porque ignoraba ese cambio.
+- **Extorsión:** pasó de 4,734 denuncias en 2021 a 22,356 en 2024 (**+372%**) y sigue creciendo en 2025 (+27% ene-oct), a contracorriente de la caída general.
 - **Lima Metropolitana** queda sola en el cluster de riesgo crítico (más de 2.3 millones de denuncias); Arequipa, Lambayeque, La Libertad y Piura encabezan el nivel medio.
-- **La Costa concentra más del 60%** de las denuncias del país.
+- **La Costa concentra el 75%** de las denuncias del país (5.0 de 6.7 millones).
 - Corregir el conteo (suma de `cantidad` frente a conteo de filas) mostró una incidencia **mayor a la que se obtiene con un conteo simple**.
 
 ## 🏗️ Arquitectura
@@ -49,7 +50,7 @@ CSV SIDPOL ──► ETL (Pandas) ──► MongoDB ──► Flask (lógica + M
 |---|---|
 | Datos | MongoDB (PyMongo, Aggregation Framework) |
 | Backend | Python 3.10, Flask, Flask-Login, Gunicorn |
-| ML | Scikit-learn (K-Means, regresión lineal), Pandas, NumPy |
+| ML | Scikit-learn (K-Means, Random Forest), statsmodels (SARIMA), Pandas, NumPy |
 | IA generativa | Google Gemini API (Gemini 3.5 Flash, SDK `google-genai`) |
 | Frontend | Jinja2, Bootstrap 5, Chart.js, Plotly.js, Highcharts Maps |
 | Despliegue | Render + MongoDB Atlas |
@@ -59,7 +60,7 @@ CSV SIDPOL ──► ETL (Pandas) ──► MongoDB ──► Flask (lógica + M
 
 ```
 app.py               # Rutas Flask, autenticación, roles y controles de seguridad
-ml_utils.py          # Conexión a MongoDB, series mensuales, regresión lineal y modelo de riesgo
+ml_utils.py          # Conexión a MongoDB, series mensuales, proyección SARIMA y modelo de riesgo
 ml_cluster.py        # Clustering K-Means de departamentos
 ml_llm.py            # Cliente de Gemini (google-genai), agentes y límite de IA para la cuenta demo
 mongo_queries.py     # Pipelines de agregación de MongoDB
@@ -125,7 +126,7 @@ pytest tests -v
 ```
 
 ## ⚠️ Limitaciones y trabajo futuro
-- La proyección usa **regresión lineal simple**, que capta la tendencia general pero no la estacionalidad. Como siguiente paso se plantean SARIMA o LSTM.
+- La proyección SARIMA asume que la tendencia reciente continúa; ante cambios de política o de registro, el intervalo de confianza es la referencia. Como siguiente paso se plantea comparar con modelos por modalidad y departamento.
 - El análisis es a nivel de **departamento**. Para bajar a distrito o cuadrante se necesitaría georreferenciar cada denuncia.
 - Las proyecciones son **exploratorias** y con fines académicos, no pronósticos oficiales.
 

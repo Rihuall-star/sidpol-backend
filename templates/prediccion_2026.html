@@ -1,109 +1,106 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{% block title %}Proyección 2026 - SIDPOL{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 bg-primary text-white">
-            <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-line"></i> Predicción de Incidentes 2026</h6>
-        </div>
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-4 text-center mb-4 mb-md-0">
-                    <div class="p-3 border rounded bg-light">
-                        <h5 class="text-secondary">Total Proyectado 2026</h5>
-                        <h1 class="display-4 font-weight-bold text-primary">{{ total }}</h1>
-                        <p class="mb-0 text-muted">Incidentes estimados (IA)</p>
-                    </div>
-                    <div class="mt-3">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle"></i> Modelo: Regresión Lineal sobre base 'simulaciones_riesgo'.
-                        </small>
-                    </div>
-                </div>
+<div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="fas fa-chart-line text-primary me-2"></i>Proyección de Denuncias 2026</h2>
+        <p class="text-muted mb-0">Pronóstico mensual con un modelo de series de tiempo validado contra datos reales.</p>
+    </div>
+    {% if p %}<span class="badge bg-secondary">Datos reales hasta {{ p.ultimo_mes }}</span>{% endif %}
+</div>
 
-                <div class="col-md-8">
-                    <div class="chart-container" style="position: relative; height:300px; width:100%">
-                        <canvas id="myChart"></canvas>
-                    </div>
-                </div>
+{% if not p %}
+<div class="alert alert-warning">No hay datos suficientes para generar la proyección.</div>
+{% else %}
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+            <div class="card-body">
+                <div class="text-uppercase small text-primary fw-semibold">Total proyectado 2026</div>
+                <div class="display-6 fw-bold">{{ "{:,}".format(p.total_2026) }}</div>
+                <div class="small text-muted">IC 95%: {{ "{:,}".format(p.total_2026_min) }} – {{ "{:,}".format(p.total_2026_max) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+            <div class="card-body">
+                <div class="text-uppercase small text-success fw-semibold">Error de validación (MAPE)</div>
+                <div class="display-6 fw-bold">{{ p.mape_sarima }}%</div>
+                <div class="small text-muted">Regresión lineal anterior: {{ p.mape_lineal }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+            <div class="card-body">
+                <div class="text-uppercase small text-warning fw-semibold">Real 2025 (hasta {{ p.ultimo_mes }})</div>
+                <div class="display-6 fw-bold">{{ "{:,}".format(p.total_2025_real) }}</div>
+                <div class="small text-muted">Denuncias registradas en SIDPOL</div>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Gráfico -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold">
+        Últimos 24 meses reales y pronóstico hasta diciembre de 2026
+    </div>
+    <div class="card-body">
+        <div style="position: relative; height: 340px;">
+            <canvas id="graficoProyeccion"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Metodología -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white fw-semibold"><i class="fas fa-flask me-1"></i> Metodología</div>
+    <div class="card-body small">
+        <ul class="mb-2">
+            <li><strong>Modelo:</strong> {{ p.modelo }} ("airline model" de Box-Jenkins), que captura tendencia y estacionalidad anual.</li>
+            <li><strong>Pandemia:</strong> los meses de marzo de 2020 a febrero de 2021 se modelan con indicadores de intervención, para que la caída atípica no distorsione la tendencia.</li>
+            <li><strong>Validación:</strong> el modelo se entrenó sin los últimos 12 meses y se comparó su pronóstico con lo realmente ocurrido. Error medio absoluto porcentual (MAPE) = <strong>{{ p.mape_sarima }}%</strong>, frente a <strong>{{ p.mape_lineal }}%</strong> de la regresión lineal usada antes.</li>
+            <li><strong>Incertidumbre:</strong> la banda sombreada es el intervalo de confianza mensual (95%). El intervalo del total anual se estima con 1,000 simulaciones del modelo.</li>
+        </ul>
+        <p class="text-muted mb-0">Proyección exploratoria con fines académicos; no es un pronóstico oficial.</p>
+    </div>
+</div>
+
 <script>
-    // Obtenemos el contexto del canvas
-    const ctx = document.getElementById('myChart').getContext('2d');
-
-    // Datos que vienen de Python (Flask)
-    const etiquetas = {{ etiquetas | tojson }};  // Ene, Feb, Mar...
-    const valores = {{ valores | tojson }};      // 150, 160, 155...
-
-    // Configuración del Gráfico
-    new Chart(ctx, {
-        type: 'line', // Tipo de gráfico: Línea
+    const p = {{ p | tojson }};
+    new Chart(document.getElementById('graficoProyeccion'), {
+        type: 'line',
         data: {
-            labels: etiquetas,
-            datasets: [{
-                label: 'Tendencia Proyectada 2026',
-                data: valores,
-                borderColor: '#4e73df', // Color de la línea (Azul Bootstrap)
-                backgroundColor: 'rgba(78, 115, 223, 0.05)', // Relleno suave
-                pointRadius: 3,
-                pointBackgroundColor: '#4e73df',
-                pointBorderColor: '#4e73df',
-                pointHoverRadius: 3,
-                pointHoverBackgroundColor: '#4e73df',
-                pointHoverBorderColor: '#4e73df',
-                pointHitRadius: 10,
-                pointBorderWidth: 2,
-                tension: 0.3, // Curvatura de la línea (0 = recta, 0.4 = curva)
-                fill: true
-            }]
+            labels: p.graf_etiquetas,
+            datasets: [
+                { label: 'Intervalo de confianza 95%', data: p.graf_max, borderWidth: 0, pointRadius: 0,
+                  backgroundColor: 'rgba(56, 189, 248, 0.18)', fill: '+1' },
+                { label: 'IC 95% (mín.)', data: p.graf_min, borderWidth: 0, pointRadius: 0, fill: false },
+                { label: 'Pronóstico SARIMA', data: p.graf_pred, borderColor: '#0ea5e9',
+                  borderDash: [6, 4], pointRadius: 2, tension: 0.25, fill: false },
+                { label: 'Denuncias reales', data: p.graf_real, borderColor: '#1e293b',
+                  backgroundColor: '#1e293b', pointRadius: 2, tension: 0.25, fill: false }
+            ]
         },
         options: {
             maintainAspectRatio: false,
-            layout: {
-                padding: {
-                    left: 10,
-                    right: 25,
-                    top: 25,
-                    bottom: 0
-                }
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { filter: item => !item.text.startsWith('IC 95% (mín') } },
+                tooltip: { callbacks: { label: c => c.raw == null ? null : `${c.dataset.label}: ${c.raw.toLocaleString('es-PE')}` } }
             },
             scales: {
-                x: {
-                    grid: {
-                        display: false,
-                        drawBorder: false
-                    },
-                    ticks: {
-                        maxTicksLimit: 12
-                    }
-                },
-                y: {
-                    ticks: {
-                        maxTicksLimit: 5,
-                        padding: 10,
-                        beginAtZero: true
-                    },
-                    grid: {
-                        color: "rgb(234, 236, 244)",
-                        zeroLineColor: "rgb(234, 236, 244)",
-                        drawBorder: false,
-                        borderDash: [2],
-                        zeroLineBorderDash: [2]
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom'
-                }
+                y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('es-PE') } },
+                x: { grid: { display: false }, ticks: { maxTicksLimit: 13 } }
             }
         }
     });
 </script>
+{% endif %}
 {% endblock %}

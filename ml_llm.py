@@ -10,14 +10,21 @@ from pymongo import ReturnDocument
 
 # Límite diario de consultas a Gemini para usuarios con rol "invitado" (cuenta demo).
 # Se puede ajustar con la variable de entorno LIMITE_IA_INVITADO.
-LIMITE_IA_INVITADO = int(os.getenv("LIMITE_IA_INVITADO", "30"))
+LIMITE_IA_INVITADO = int(os.getenv("LIMITE_IA_INVITADO", "15"))
 
-# Modelo de Gemini. Se puede cambiar sin tocar el código con la variable GEMINI_MODEL.
+# Modelos de Gemini (configurables sin tocar el código). Si el principal agota su cuota
+# gratuita diaria (error 429), se usa automáticamente el de respaldo, que tiene cuota propia.
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_MODEL_RESPALDO = os.getenv("GEMINI_MODEL_RESPALDO", "gemini-3.5-flash-lite")
 MENSAJE_LIMITE = (
     "La cuenta demo alcanzó su límite diario de consultas a la IA. "
     "Vuelve mañana o explora el resto de los módulos del dashboard."
 )
+MENSAJE_CUOTA_GOOGLE = (
+    "El asistente de IA alcanzó el límite diario gratuito de Google Gemini. "
+    "Vuelve a intentarlo más tarde; el resto del dashboard sigue disponible."
+)
+MENSAJE_ERROR = "El asistente de IA no está disponible en este momento. Intenta nuevamente en unos minutos."
 
 
 def cuota_ia_agotada():
@@ -75,13 +82,19 @@ def generar_respuesta(prompt, instrucciones=None):
     """
     if cuota_ia_agotada():
         return MENSAJE_LIMITE
-    try:
-        config = types.GenerateContentConfig(system_instruction=instrucciones) if instrucciones else None
-        response = _cliente.models.generate_content(model=GEMINI_MODEL, contents=prompt, config=config)
-        return response.text or "Sin respuesta."
-    except Exception as e:
-        print(f"❌ Error Gemini: {str(e)}", file=sys.stderr)
-        return "El sistema de inteligencia está reiniciando servicios. Intente nuevamente."
+    config = types.GenerateContentConfig(system_instruction=instrucciones) if instrucciones else None
+    sin_cuota = False
+    for modelo in dict.fromkeys([GEMINI_MODEL, GEMINI_MODEL_RESPALDO]):  # sin duplicados, en orden
+        try:
+            response = _cliente.models.generate_content(model=modelo, contents=prompt, config=config)
+            return response.text or "Sin respuesta."
+        except Exception as e:
+            cuota = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+            sin_cuota = sin_cuota or cuota
+            print(f"❌ Error Gemini ({modelo}): {str(e)[:200]}", file=sys.stderr)
+            if not cuota:
+                break  # otros errores no se resuelven cambiando de modelo
+    return MENSAJE_CUOTA_GOOGLE if sin_cuota else MENSAJE_ERROR
 
 # --- FUNCIONES PARA LOS AGENTES ---
 
@@ -101,16 +114,21 @@ def consultar_chat_general(mensaje_usuario, contexto_datos=""):
     prompt = f"CONTEXTO DE DATOS:\n{contexto_datos}\n\nPREGUNTA DEL USUARIO:\n{mensaje_usuario}"
     return generar_respuesta(prompt, instrucciones=INSTRUCCIONES_CHAT)
 
+INSTRUCCIONES_ESTRATEGA = (
+    "Eres un analista estratégico de seguridad ciudadana del Perú. Usa SOLO los datos entregados; "
+    "no inventes cifras. Responde en español con: **Diagnóstico** (2-3 oraciones que citen las cifras clave) "
+    "y **Acciones estratégicas** (3 viñetas concretas y realistas). Máximo 180 palabras. Sin HTML."
+)
+
+
 def consultar_estratega_ia(total, contexto, riesgo):
-    if not configurar_gemini(): return "Error Config."
-    prompt = f"""
-    Actúa como Comandante General.
-    SITUACIÓN 2026: {total} delitos proyectados.
-    TENDENCIA: {contexto}.
-    FOCO DE RIESGO: {riesgo}.
-    Genera: 1 Diagnóstico breve y 3 Acciones Estratégicas (viñetas).
-    """
-    return generar_respuesta(prompt)
+    if not configurar_gemini(): return MENSAJE_ERROR
+    prompt = (
+        f"PROYECCIÓN 2026: {total:,} denuncias.\n"
+        f"DATOS Y TENDENCIA:\n{contexto}\n"
+        f"FOCO DE RIESGO: {riesgo}."
+    )
+    return generar_respuesta(prompt, instrucciones=INSTRUCCIONES_ESTRATEGA)
 
 def analizar_riesgo_ia(pred, mod, dpto, trim, anio):
     if not configurar_gemini(): return "Análisis no disponible."

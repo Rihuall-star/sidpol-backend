@@ -127,7 +127,7 @@ def test_instrucciones_del_chat_van_separadas_del_usuario(monkeypatch):
 
 
 def test_plantillas_escapan_html_en_el_chat():
-    for plantilla in ("templates/base.html", "templates/layout.html"):
+    for plantilla in ("templates/base.html",):
         html = open(plantilla, encoding="utf-8").read()
         assert "function escapeHtml" in html, plantilla
         assert "${escapeHtml(msg)}" in html, plantilla
@@ -143,3 +143,50 @@ def test_limite_diario_de_ia_para_invitado(monkeypatch):
         assert resultados == [False, False, False, True, True]
         session["rol"] = "admin"
         assert not any(ml_llm.cuota_ia_agotada() for _ in range(5))  # admin sin límite
+
+
+def test_formato_ia_escapa_html_y_da_formato():
+    salida = str(sidpol.formato_ia("**Alerta**\n* uno\n<script>alert(1)</script>"))
+    assert "<strong>Alerta</strong>" in salida
+    assert "• uno" in salida
+    assert "<script>" not in salida and "&lt;script&gt;" in salida
+
+
+# ---------- Resiliencia de la IA ----------
+class _ClienteFalso:
+    """Simula el cliente de Gemini: el modelo principal sin cuota (429) y el de respaldo responde."""
+    def __init__(self, fallan):
+        self.fallan, self.llamados = fallan, []
+        self.models = self
+
+    def generate_content(self, model, contents, config=None):
+        self.llamados.append(model)
+        if model in self.fallan:
+            raise RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded")
+        return type("R", (), {"text": f"ok desde {model}"})()
+
+
+def test_respaldo_automatico_si_el_modelo_principal_agota_cuota(monkeypatch):
+    falso = _ClienteFalso(fallan={ml_llm.GEMINI_MODEL})
+    monkeypatch.setattr(ml_llm, "_cliente", falso)
+    assert ml_llm.generar_respuesta("hola") == f"ok desde {ml_llm.GEMINI_MODEL_RESPALDO}"
+    assert falso.llamados == [ml_llm.GEMINI_MODEL, ml_llm.GEMINI_MODEL_RESPALDO]
+
+
+def test_mensaje_claro_si_se_agota_toda_la_cuota(monkeypatch):
+    falso = _ClienteFalso(fallan={ml_llm.GEMINI_MODEL, ml_llm.GEMINI_MODEL_RESPALDO})
+    monkeypatch.setattr(ml_llm, "_cliente", falso)
+    assert ml_llm.generar_respuesta("hola") == ml_llm.MENSAJE_CUOTA_GOOGLE
+
+
+def test_estratega_usa_cache_diaria(client, base_limpia, monkeypatch):
+    llamadas = []
+    monkeypatch.setattr(sidpol, "obtener_contexto_ia", lambda col: (650000, "contexto"))
+    monkeypatch.setattr(sidpol, "consultar_estratega_ia",
+                        lambda total, ctx, riesgo: llamadas.append(1) or "**Diagnóstico** de prueba")
+    base_limpia["cache_ia"].delete_many({})
+    login(client, "demo", USUARIOS["demo"][0])
+    for _ in range(3):
+        html = client.get("/agente-estrategico").get_data(as_text=True)
+        assert "<strong>Diagnóstico</strong>" in html
+    assert len(llamadas) == 1  # solo la primera visita del día llama a Gemini

@@ -22,14 +22,16 @@ from pymongo import MongoClient
 from sklearn.cluster import KMeans
 
 # ---- Módulos del Proyecto ----
+from markupsafe import Markup, escape
 from ml_utils import (
-    db, predecir_total_2026, obtener_contexto_ia, 
+    db, predecir_total_2026, proyeccion_2026, obtener_contexto_ia,
     entrenar_modelo_riesgo, predecir_valor_especifico
 )
 from mongo_queries import ranking_departamentos
 from ml_cluster import clusterizar_departamentos
 from ml_llm import (
-    consultar_estratega_ia, analizar_riesgo_ia, consultar_chat_general
+    consultar_estratega_ia, analizar_riesgo_ia, consultar_chat_general,
+    MENSAJE_CUOTA_GOOGLE, MENSAJE_ERROR, MENSAJE_LIMITE
 )
 
 # Cargar variables
@@ -89,6 +91,16 @@ def cabeceras_seguridad(resp):
     if EN_PRODUCCION:
         resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return resp
+
+
+@app.template_filter("formato_ia")
+def formato_ia(texto):
+    """Da formato básico (negritas, viñetas, saltos de línea) al texto de la IA.
+    Primero escapa todo el HTML, así una respuesta maliciosa no puede inyectar código (XSS)."""
+    t = str(escape(texto or ""))
+    t = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", t)
+    t = re.sub(r"(?m)^\s*[\*\-]\s+", "• ", t)
+    return Markup(t.replace("\n", "<br>"))
 
 
 @app.errorhandler(CSRFError)
@@ -653,18 +665,36 @@ def reporte_lima():
 @app.route('/prediccion-2026')
 @login_required
 def prediccion_2026():
-    total, etiquetas, valores, _, _ = predecir_total_2026(col)
-    return render_template('prediccion_2026.html', total=total, etiquetas=etiquetas, valores=valores)
+    try:
+        p = proyeccion_2026(col)
+    except Exception as e:
+        print(f"Error en proyección SARIMA: {e}")
+        p = None
+    return render_template('prediccion_2026.html', p=p)
 
 @app.route('/agente-estrategico')
 @login_required
 def agente_estrategico():
     try:
         total_2026, texto_historico = obtener_contexto_ia(col)
-        analisis_ia = consultar_estratega_ia(total_2026, texto_historico, "Tendencia Extorsión/Homicidio")
-        return render_template('agente_estrategico.html', total="{:,}".format(total_2026), analisis=analisis_ia)
-    except:
-        return render_template('agente_estrategico.html', total="Calculando...", analisis="IA Reiniciando...")
+    except Exception as e:
+        print(f"Error en contexto del estratega: {e}")
+        return render_template('agente_estrategico.html', total="No disponible",
+                               analisis="No se pudo calcular la proyección en este momento.")
+
+    # El análisis se genera una vez al día y se guarda: así las visitas no gastan cuota de Gemini
+    clave = f"estratega-{datetime.now():%Y-%m-%d}-{total_2026}"
+    cache = db['cache_ia'].find_one({"_id": clave})
+    if cache:
+        analisis_ia = cache["texto"]
+    else:
+        contexto_modalidades = contexto_crecimiento_modalidades(col, top=7)
+        analisis_ia = consultar_estratega_ia(total_2026, f"{texto_historico}\n{contexto_modalidades}",
+                                             "Extorsión y delitos patrimoniales")
+        if analisis_ia not in (MENSAJE_CUOTA_GOOGLE, MENSAJE_ERROR, MENSAJE_LIMITE):
+            db['cache_ia'].replace_one({"_id": clave}, {"_id": clave, "texto": analisis_ia,
+                                                        "creado": datetime.now()}, upsert=True)
+    return render_template('agente_estrategico.html', total="{:,}".format(total_2026), analisis=analisis_ia)
 
 @app.route('/riesgo-modalidad', methods=['GET', 'POST'])
 @login_required
@@ -723,6 +753,37 @@ def riesgo_modalidad():
 # ============================================================
 # CHATBOT IA: CONTEXTO INTELIGENTE (MEJORADO)
 # ============================================================
+def contexto_crecimiento_modalidades(col, top=10):
+    """Resume cómo cambió cada modalidad: 2021 vs 2024 (años completos) y ene-oct 2025 vs ene-oct 2024."""
+    def por_modalidad(match):
+        filas = col.aggregate([
+            {"$match": match},
+            {"$group": {"_id": {"m": "$P_MODALIDADES", "a": "$ANIO"}, "total": {"$sum": "$cantidad"}}},
+        ])
+        res = {}
+        for f in filas:
+            m, a = f["_id"].get("m"), f["_id"].get("a")
+            if m:
+                res.setdefault(m, {})[int(a)] = f["total"]
+        return res
+
+    def var(nuevo, viejo):
+        return f"{(nuevo - viejo) / viejo * 100:+.0f}%" if viejo else "n/d"
+
+    completos = por_modalidad({"ANIO": {"$in": [2021, 2024]}})
+    parciales = por_modalidad({"ANIO": {"$in": [2024, 2025]}, "MES": {"$lte": 10}})
+    principales = sorted(completos, key=lambda m: completos[m].get(2024, 0), reverse=True)[:top]
+
+    lineas = []
+    for m in principales:
+        c, p = completos.get(m, {}), parciales.get(m, {})
+        lineas.append(
+            f"{m}: 2021={c.get(2021, 0):,} → 2024={c.get(2024, 0):,} ({var(c.get(2024, 0), c.get(2021, 0))}); "
+            f"ene-oct 2025 vs ene-oct 2024: {var(p.get(2025, 0), p.get(2024, 0))}"
+        )
+    return "EVOLUCIÓN POR MODALIDAD (top 10 de 2024):\n" + "\n".join(lineas) + "\n"
+
+
 @app.route('/chat-ia', methods=['POST'])
 @login_required
 @limiter.limit("10 per minute")
@@ -752,6 +813,16 @@ def chat_ia():
         datos_mod = list(col.aggregate(pipeline_mod))
         txt_mod = ", ".join([f"{d['_id']} ({d['total']:,})" for d in datos_mod])
         contexto_acumulado += f"TOP 5 DELITOS (NACIONAL): {txt_mod}.\n"
+        contexto_acumulado += "NOTA: 2025 tiene datos solo hasta octubre (año incompleto).\n"
+
+        # C. Evolución por modalidad (para preguntas de crecimiento o tendencia)
+        contexto_acumulado += contexto_crecimiento_modalidades(col)
+
+        # D. Proyección 2026 (modelo SARIMA validado)
+        try:
+            contexto_acumulado += f"PROYECCIÓN: {obtener_contexto_ia(col)[1]}\n"
+        except Exception as e:
+            print(f"Proyección no disponible para el chat: {e}")
 
         # -----------------------------------------------------
         # 2. DETECCIÓN INTELIGENTE (¿El usuario habla de un lugar?)
