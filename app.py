@@ -268,21 +268,54 @@ def index():
     except Exception as e:
         print(f"⚠️ Error en contador de visitas: {e}")
 
-    total_registros = col.count_documents({})
-    
-    pipeline = [{"$group": {"_id": None, "total": {"$sum": "$cantidad"}}}]
-    res = list(col.aggregate(pipeline))
-    total_denuncias = res[0]["total"] if res else 0
+    ind = indicadores_dashboard(col)
 
-    anios = sorted(col.distinct("ANIO"))
+    try:
+        proyeccion = proyeccion_2026(col)
+    except Exception as e:
+        print(f"Proyección no disponible en el dashboard: {e}")
+        proyeccion = None
 
-    return render_template(
-        "index.html",
-        total_registros=total_registros,
-        total_denuncias=total_denuncias,
-        anios=anios,
-        visitas=visitas
-    )
+    return render_template("index.html", ind=ind, proyeccion=proyeccion, visitas=visitas)
+
+
+_cache_dashboard = {"dia": None, "datos": None}
+
+
+def indicadores_dashboard(col):
+    """KPIs del dashboard. Se calculan una vez al día (los datos cambian poco)."""
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    if _cache_dashboard["dia"] == hoy and _cache_dashboard["datos"]:
+        return _cache_dashboard["datos"]
+
+    por_anio = list(col.aggregate([
+        {"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}}, {"$sort": {"_id": 1}}
+    ]))
+    por_anio = [d for d in por_anio if str(d["_id"]).isdigit()]
+    total = sum(d["total"] for d in por_anio)
+
+    extorsion = {d["_id"]: d["total"] for d in col.aggregate([
+        {"$match": {"P_MODALIDADES": "Extorsión", "ANIO": {"$in": [2021, 2024]}}},
+        {"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}},
+    ])}
+    e21, e24 = extorsion.get(2021, 0), extorsion.get(2024, 0)
+
+    ranking = [d for d in ranking_departamentos(col, n=6) if d.get("_id")][:5]
+
+    datos = {
+        "total_denuncias": total,
+        "total_registros": col.estimated_document_count(),
+        "anios": [int(d["_id"]) for d in por_anio],
+        "serie_anual": [int(d["total"]) for d in por_anio],
+        "anio_pico": int(max(por_anio, key=lambda d: d["total"])["_id"]) if por_anio else None,
+        "extorsion_2021": e21,
+        "extorsion_2024": e24,
+        "extorsion_var": round((e24 - e21) / e21 * 100) if e21 else None,
+        "ranking": [{"nombre": str(d["_id"]).title(), "total": d["total"],
+                     "pct": round(d["total"] / total * 100, 1) if total else 0} for d in ranking],
+    }
+    _cache_dashboard.update(dia=hoy, datos=datos)
+    return datos
 
 # ============================================================
 #  MÓDULO: AUDITORÍA Y USUARIOS ACTIVOS

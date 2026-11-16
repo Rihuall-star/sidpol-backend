@@ -11,16 +11,17 @@
 <div class="container-fluid">
     <div class="row mb-3">
         <div class="col-12">
-            <h2 class="fw-bold text-primary"><i class="bi bi-geo-alt-fill"></i> Geografía del Delito</h2>
-            <p class="text-muted">Distribución espacial de denuncias a nivel nacional (Heatmap).</p>
+            <div class="sp-eyebrow mb-2"><i class="fas fa-map-location-dot me-1"></i> Análisis geoespacial</div>
+            <h2 class="sp-title mb-1">Geografía del delito</h2>
+            <p class="sp-sub">Total de denuncias por departamento, 2018–2025. Usa la rueda del mouse o los botones para acercar.</p>
         </div>
     </div>
 
     <div class="row">
         <div class="col-md-8">
-            <div class="card shadow-sm" style="height: 600px;">
-                <div class="card-body p-0">
-                    <div id="container-mapa" style="height: 100%; width: 100%;"></div>
+            <div class="card shadow-sm">
+                <div class="card-body p-2">
+                    <div id="container-mapa" style="height: 640px; width: 100%;"></div>
                 </div>
             </div>
         </div>
@@ -28,7 +29,7 @@
         <div class="col-md-4">
             <div class="card shadow mb-4">
                 <div class="card-header bg-danger text-white">
-                    <i class="bi bi-exclamation-triangle"></i> Top 5: Zonas Críticas
+                    <i class="fas fa-fire me-1"></i> Top 5: zonas críticas
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for item in top_5 %}
@@ -43,10 +44,11 @@
             </div>
 
             <div class="alert alert-info">
-                <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Interpretación</h5>
+                <h6 class="alert-heading fw-bold"><i class="fas fa-circle-info me-1"></i> Cómo leer el mapa</h6>
                 <p class="small mb-0">
-                    Las zonas con color <strong>azul oscuro</strong> representan la mayor concentración de denuncias. 
-                    Lima Metropolitana y la Costa Norte suelen presentar la mayor densidad delictiva.
+                    La escala va de <strong>azul</strong> (menos denuncias) a <strong style="color:#f59e0b">ámbar</strong> y
+                    <strong style="color:#f43f5e">rojo</strong> (más denuncias) y es logarítmica, para que Lima Metropolitana
+                    no oculte las diferencias entre los demás departamentos.
                 </p>
             </div>
         </div>
@@ -59,8 +61,12 @@
 
     Highcharts.mapChart('container-mapa', {
         chart: {
-            map: 'countries/pe/pe-all'
+            map: 'countries/pe/pe-all',
+            backgroundColor: 'transparent',
+            style: { fontFamily: 'Inter, sans-serif' }
         },
+        credits: { style: { color: '#64748b' } },
+        legend: { itemStyle: { color: '#a8b3c7' } },
         title: {
             text: ''
         },
@@ -73,23 +79,29 @@
         colorAxis: {
             // Escala logarítmica: Lima Metropolitana (más de 2 millones) no "aplana" al resto del país
             type: 'logarithmic',
-            minColor: '#E6F3FF',
-            maxColor: '#003366',
+            stops: [[0, '#0b2540'], [0.45, '#0e7490'], [0.7, '#22d3ee'], [0.85, '#f59e0b'], [1, '#f43f5e']],
+            labels: { style: { color: '#a8b3c7' } },
         },
         tooltip: {
+            backgroundColor: 'rgba(13, 22, 40, 0.95)',
+            borderColor: '#22d3ee',
+            style: { color: '#f8fafc' },
             pointFormat: '{point.name}: <b>{point.value:,.0f}</b> denuncias'
         },
         series: [{
             data: data,
             name: 'Denuncias Totales',
+            borderColor: 'rgba(6, 11, 22, 0.9)',
+            nullColor: '#1e293b',
             states: {
                 hover: {
-                    color: '#BADA55'
+                    color: '#f59e0b'
                 }
             },
             dataLabels: {
                 enabled: true,
-                format: '{point.name}'
+                format: '{point.name}',
+                style: { color: '#e2e8f0', textOutline: '1px #060b16', fontWeight: '500', fontSize: '10px' }
             }
         }]
     });

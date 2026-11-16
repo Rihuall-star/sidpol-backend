@@ -1,71 +1,97 @@
 {% extends "base.html" %}
 
-{% block title %}Iniciar sesión{% endblock %}
+{% block title %}SIDPOL · Inteligencia delictiva del Perú{% endblock %}
 
 {% block content %}
 
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6 col-lg-5">
+<div class="row align-items-center g-5 py-lg-4">
 
-        <!-- ===== Acceso de prueba (cuenta demo) ===== -->
-        <div class="card border-0 shadow mb-4" style="background: linear-gradient(135deg, #0b1220, #12304a); color: #f1f5f9;">
+    <!-- ===== Presentación ===== -->
+    <div class="col-lg-6 sp-fade">
+        <div class="sp-eyebrow mb-3"><i class="fas fa-satellite-dish me-1"></i> Plataforma de inteligencia de datos</div>
+        <h1 class="sp-title display-5 mb-3">Inteligencia delictiva del Perú con machine learning e IA</h1>
+        <p class="sp-sub fs-5 mb-4">
+            Más de 6.6 millones de denuncias policiales (2018–2025) convertidas en mapas de riesgo,
+            proyecciones validadas y análisis en lenguaje natural.
+        </p>
+
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <div class="sp-tile">
+                    <span class="sp-kpi-icon" style="--kpi: var(--sp-violet);"><i class="fas fa-chart-line"></i></span>
+                    <span><strong>Proyección SARIMA</strong><small>6% de error en validación</small></span>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="sp-tile">
+                    <span class="sp-kpi-icon" style="--kpi: var(--sp-amber);"><i class="fas fa-circle-nodes"></i></span>
+                    <span><strong>Radar K-Means</strong><small>Riesgo por departamento</small></span>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="sp-tile">
+                    <span class="sp-kpi-icon" style="--kpi: var(--sp-cyan);"><i class="fas fa-robot"></i></span>
+                    <span><strong>Asistente Gemini</strong><small>Preguntas sobre los datos</small></span>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="sp-tile">
+                    <span class="sp-kpi-icon" style="--kpi: var(--sp-green);"><i class="fas fa-shield-halved"></i></span>
+                    <span><strong>OWASP Top 10</strong><small>CSP, CSRF y rate limiting</small></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Acceso ===== -->
+    <div class="col-lg-5 offset-lg-1 sp-fade d2">
+
+        <!-- Cuenta demo -->
+        <div class="card mb-4" style="border-color: var(--sp-border-strong) !important; box-shadow: 0 0 0 1px rgba(34,211,238,.15), 0 20px 50px rgba(8,145,178,.18) !important;">
             <div class="card-body p-4">
-                <span class="badge bg-danger mb-2"><i class="fas fa-circle me-1" style="font-size: .6em;"></i> DEMO EN VIVO</span>
-                <h4 class="fw-bold mb-1">¿Quieres probar SIDPOL?</h4>
-                <p class="mb-3" style="color: #94a3b8;">Usa esta cuenta de prueba (solo lectura):</p>
+                <span class="sp-live mb-3">Demo en vivo</span>
+                <h4 class="fw-bold mt-3 mb-1">¿Quieres probar SIDPOL?</h4>
+                <p class="text-muted mb-3">Usa esta cuenta de prueba (solo lectura):</p>
 
                 <div class="row g-2 mb-3">
                     <div class="col-5">
-                        <div class="rounded-3 p-2 text-center" style="background: #0f172a; border: 1px solid #2dd4bf;">
-                            <div class="small" style="color: #94a3b8;">Usuario</div>
-                            <div class="fs-4 fw-bold font-monospace" style="color: #5eead4;">demo</div>
+                        <div class="rounded-3 p-2 text-center" style="background: rgba(2,6,23,.6); border: 1px solid rgba(34,211,238,.45);">
+                            <div class="small text-muted">Usuario</div>
+                            <div class="fs-4 fw-bold font-monospace" style="color: #67e8f9;">demo</div>
                         </div>
                     </div>
                     <div class="col-7">
-                        <div class="rounded-3 p-2 text-center" style="background: #0f172a; border: 1px solid #2dd4bf;">
-                            <div class="small" style="color: #94a3b8;">Contraseña</div>
-                            <div class="fs-4 fw-bold font-monospace" style="color: #5eead4;">SidpolDemo2026</div>
+                        <div class="rounded-3 p-2 text-center" style="background: rgba(2,6,23,.6); border: 1px solid rgba(34,211,238,.45);">
+                            <div class="small text-muted">Contraseña</div>
+                            <div class="fs-5 fw-bold font-monospace" style="color: #67e8f9;">SidpolDemo2026</div>
                         </div>
                     </div>
                 </div>
 
-                <button type="button" id="btnDemo" class="btn btn-info w-100 fw-bold">
-                    <i class="fas fa-play me-1"></i> Entrar con la cuenta demo
+                <button type="button" id="btnDemo" class="btn btn-primary btn-lg w-100">
+                    <i class="fas fa-play me-2"></i>Entrar con la cuenta demo
                 </button>
-                <p class="small mt-2 mb-0" style="color: #94a3b8;">
+                <p class="small text-muted mt-2 mb-0">
                     La primera carga puede tardar unos segundos. El asistente de IA tiene un límite diario de consultas.
                 </p>
             </div>
         </div>
 
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h3 class="card-title mb-3 text-center">Iniciar sesión</h3>
-
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, msg in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ msg }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-                {% endwith %}
-
+        <!-- Acceso con usuario propio -->
+        <div class="card">
+            <div class="card-body p-4">
+                <h5 class="mb-3"><i class="fas fa-lock me-2 text-primary"></i>Acceso de usuarios</h5>
                 <form method="post" id="loginForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Usuario</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                        <input type="text" class="form-control" id="username" name="username" autocomplete="username" required>
                     </div>
-
                     <div class="mb-3">
                         <label for="password" class="form-label">Contraseña</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                        <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
                     </div>
-
-                    <button type="submit" class="btn btn-primary w-100">Entrar</button>
+                    <button type="submit" class="btn btn-outline-primary w-100">Entrar</button>
                 </form>
             </div>
         </div>

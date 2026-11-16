@@ -11,6 +11,8 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 
 > Cuenta de solo lectura con un límite diario de consultas a la IA. El servidor gratuito puede tardar unos 30 segundos en despertar la primera vez.
 
+![Portada de SIDPOL](docs/img/login.png)
+
 | Dashboard | Radar de riesgo (K-Means) | Proyección 2026 |
 |---|---|---|
 | ![Dashboard](docs/img/dashboard.png) | ![Clusters](docs/img/clusters.png) | ![Proyección 2026](docs/img/prediccion.png) |
