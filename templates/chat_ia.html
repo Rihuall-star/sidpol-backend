@@ -200,7 +200,7 @@
                             <i class="bi bi-robot"></i>
                         </div>
                         <div class="message-bubble">
-                            {{ msg.texto | safe }}
+                            {{ msg.texto }}
                         </div>
                     </div>
                 {% endif %}
@@ -221,6 +221,7 @@
 
         <div class="chat-input-area">
             <form method="post" id="chatForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="input-group-custom">
                     <input type="text" name="mensaje" class="form-control" placeholder="Escribe tu consulta aquí..." required autocomplete="off" id="userMsg">
                     <button class="btn btn-primary rounded-circle ms-2" type="submit" style="width: 45px; height: 45px;">

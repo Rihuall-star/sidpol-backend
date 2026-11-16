@@ -68,6 +68,23 @@ poblacion_peru.py      # Población para tasas per cápita
 templates/  static/    # Interfaz web
 ```
 
+## 🔐 Seguridad
+
+La aplicación aplica controles alineados con **OWASP Top 10 (2021)**:
+
+| Riesgo OWASP | Control implementado |
+|---|---|
+| **A01** Pérdida de control de acceso | Roles (`admin` / `analista` / `invitado`) con decoradores `login_required` y `admin_required`; auditoría y gestión de usuarios solo para administradores. Protección **CSRF** (Flask-WTF) en todos los formularios y en el chat. |
+| **A02** Fallas criptográficas | Contraseñas con hash (Werkzeug, PBKDF2/scrypt); HTTPS con **HSTS**; cookies `Secure` en producción. |
+| **A03** Inyección / XSS | Consultas a MongoDB con parámetros tipados; escape de HTML en las respuestas del chat antes de insertarlas en la página; plantillas Jinja2 con autoescape. |
+| **A04** Diseño inseguro | Cuenta demo de solo lectura con **límite diario de consultas a la IA**, guardado en la base de datos. |
+| **A05** Configuración incorrecta | Cabeceras **Content-Security-Policy**, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`; secretos solo por variables de entorno (la app no arranca sin `SECRET_KEY`). |
+| **A06** Componentes vulnerables | **Dependabot** semanal para dependencias de Python. |
+| **A07** Fallas de autenticación | **Rate limiting** en el login (5 intentos por minuto y 30 por hora por IP); sesión nueva en cada login (contra la fijación de sesión); cookies `HttpOnly` y `SameSite=Lax`; expiración de la sesión a las 8 horas. |
+| **A09** Fallas de registro y monitoreo | Auditoría de inicios de sesión **y de intentos fallidos**, con la IP real del visitante (`ProxyFix` detrás del proxy de Render). |
+
+**Pendiente (próximas mejoras):** CSP basada en *nonces* para eliminar `'unsafe-inline'`, análisis estático con CodeQL y pruebas automatizadas en GitHub Actions.
+
 ## 🚀 Ejecución local
 
 ```bash

@@ -136,9 +136,15 @@
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
 
         // Función para embellecer el texto de la IA (Markdown simple)
+        // Escapa HTML antes de insertar texto en la página (prevención de XSS)
+        function escapeHtml(t) {
+            return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
         function formatText(text) {
             // 1. Negritas: **texto** -> <b>texto</b>
-            let formatted = text.replace(/\*\*(.*?)\*\*/g, '<b class="text-dark">$1</b>');
+            let formatted = escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b class="text-dark">$1</b>');
             // 2. Listas: * texto -> <br>• texto
             formatted = formatted.replace(/\* /g, '<br>• ');
             // 3. Saltos de línea
@@ -157,7 +163,7 @@
             chatBody.innerHTML += `
                 <div class="d-flex justify-content-end mb-3">
                     <div class="chat-bubble-user">
-                        ${msg}
+                        ${escapeHtml(msg)}
                     </div>
                 </div>`;
             
@@ -177,7 +183,10 @@
             // Petición al Servidor
             fetch('/chat-ia', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
                 body: `mensaje=${encodeURIComponent(msg)}`
             })
             .then(r => r.json())

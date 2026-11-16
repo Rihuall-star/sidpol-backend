@@ -13,6 +13,10 @@ from flask import (
 )
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from sklearn.cluster import KMeans
@@ -33,6 +37,74 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
+
+# ============================================================
+#  SEGURIDAD (OWASP Top 10)
+# ============================================================
+EN_PRODUCCION = bool(os.getenv("RENDER"))  # Render define RENDER=true
+
+# IP real del visitante detrás del proxy de Render (para auditoría y rate limiting)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# Cookies de sesión endurecidas (A07: fallas de identificación y autenticación)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=EN_PRODUCCION,       # solo HTTPS en producción
+    REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_SECURE=EN_PRODUCCION,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    WTF_CSRF_TIME_LIMIT=None,                  # el token dura lo que dure la sesión
+)
+
+# Protección CSRF en todos los formularios y peticiones POST (A01)
+csrf = CSRFProtect(app)
+
+# Límite de peticiones (A07: fuerza bruta / abuso)
+limiter = Limiter(get_remote_address, app=app, storage_uri="memory://", default_limits=[])
+
+# Cabeceras de seguridad HTTP (A05: configuración de seguridad incorrecta)
+CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com "
+    "https://code.jquery.com https://cdn.plot.ly https://code.highcharts.com",
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+
+
+@app.after_request
+def cabeceras_seguridad(resp):
+    resp.headers["Content-Security-Policy"] = CSP
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    resp.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if EN_PRODUCCION:
+        resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return resp
+
+
+@app.errorhandler(CSRFError)
+def error_csrf(e):
+    if request.path == "/chat-ia":
+        return jsonify({"respuesta": "Tu sesión expiró. Recarga la página e intenta de nuevo."}), 400
+    flash("La sesión del formulario expiró. Intenta de nuevo.", "error")
+    return redirect(request.referrer or url_for("login"))
+
+
+@app.errorhandler(429)
+def demasiadas_peticiones(e):
+    if request.path == "/chat-ia":
+        return jsonify({"respuesta": "Demasiadas consultas seguidas. Espera un minuto."}), 429
+    flash("Demasiados intentos. Espera un minuto antes de volver a intentar.", "error")
+    return redirect(url_for("login"))
 
 # ================================
 #  CONFIGURACIÓN FLASK-LOGIN
@@ -104,19 +176,22 @@ def update_last_seen():
 #  LOGIN / LOGOUT
 # ============================================================
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 30 per hour", methods=["POST"])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = str(request.form.get('username', '')).strip()
+        password = str(request.form.get('password', ''))
 
         users_col = db['usuarios']
         user_data = users_col.find_one({"username": username})
 
         if user_data and check_password_hash(user_data['password'], password):
-            # Login exitoso
+            # Login exitoso: sesión nueva para evitar fijación de sesión
+            session.clear()
+            session.permanent = True
             user = User(user_data)
             login_user(user)
-            
+
             # Guardar en sesión también por compatibilidad
             session['user'] = username
             session['rol'] = user_data.get('rol', 'invitado')
@@ -137,6 +212,17 @@ def login():
 
             return redirect(url_for('index'))
         else:
+            # --- AUDITORÍA: intento fallido (útil para detectar fuerza bruta) ---
+            try:
+                db['auditoria'].insert_one({
+                    "usuario": username[:50],
+                    "evento": "Intento fallido",
+                    "fecha": datetime.now(),
+                    "fecha_str": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "ip": request.remote_addr
+                })
+            except Exception as e:
+                print(f"Error guardando auditoría: {e}")
             flash('Usuario o contraseña incorrectos', 'error')
             return redirect(url_for('login'))
 
@@ -620,8 +706,9 @@ def riesgo_modalidad():
 # ============================================================
 @app.route('/chat-ia', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")
 def chat_ia():
-    mensaje = request.form.get('mensaje', '').strip()
+    mensaje = request.form.get('mensaje', '').strip()[:500]  # limita el tamaño del prompt
     if not mensaje: return jsonify({'respuesta': "No entendí."})
     
     try:

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}SIDPOL - Inteligencia Policial{% endblock %}</title>
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_sidpol.png') }}">
@@ -250,13 +251,18 @@
             if(isHidden) document.getElementById('chat-input').focus();
         }
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
-        function formatText(text) { return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\* /g, '<br>• ').replace(/\n/g, '<br>'); }
+        // Escapa HTML antes de insertar texto en la página (prevención de XSS)
+        function escapeHtml(t) {
+            return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function formatText(text) { return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\* /g, '<br>• ').replace(/\n/g, '<br>'); }
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const msg = input.value.trim();
             if(!msg) return;
             const chatBody = document.getElementById('chat-messages');
-            chatBody.innerHTML += `<div class="d-flex justify-content-end mb-3"><div class="chat-bubble-user shadow-sm">${msg}</div></div>`;
+            chatBody.innerHTML += `<div class="d-flex justify-content-end mb-3"><div class="chat-bubble-user shadow-sm">${escapeHtml(msg)}</div></div>`;
             input.value = '';
             chatBody.scrollTop = chatBody.scrollHeight;
             const loadId = 'loading-' + Date.now();
@@ -264,7 +270,10 @@
             chatBody.scrollTop = chatBody.scrollHeight;
             fetch('/chat-ia', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
                 body: `mensaje=${encodeURIComponent(msg)}`
             })
             .then(r => r.json())
