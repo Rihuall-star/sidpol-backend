@@ -372,7 +372,7 @@ def datos_mapa():
             codes = [codes]
 
         if codes:
-            nombre = nombres_visibles.get(nombre_bd, nombre_bd.title())
+            nombre = nombres_visibles.get(nombre_bd, analitica.titulo(nombre_bd))
             for code in codes:
                 data_mapa.append({"hc-key": code, "value": d["total"], "name": nombre})
         else:
