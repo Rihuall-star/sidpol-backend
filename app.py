@@ -67,7 +67,7 @@ limiter = Limiter(get_remote_address, app=app, storage_uri="memory://", default_
 CSP = "; ".join([
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com "
-    "https://code.jquery.com https://cdn.plot.ly https://code.highcharts.com",
+    "https://code.jquery.com https://cdn.plot.ly",
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:",
     "img-src 'self' data: blob:",
