@@ -1,147 +1,120 @@
 {% extends "base.html" %}
+{% import "_seccion.html" as sec %}
 
-{% block title %}Centro de Inteligencia - SIDPOL{% endblock %}
+{% block title %}Panorama - SIDPOL{% endblock %}
 
 {% block content %}
+{% if not pan or not dl or not dl.extorsion or not ter or ter.focos|length < 1 %}
+<div class="alert alert-warning">No hay datos suficientes para mostrar el panorama.</div>
+{% else %}
+{% set ext = dl.extorsion %}
 
-<!-- Encabezado -->
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4 sp-fade">
-    <div>
-        <div class="sp-eyebrow mb-2"><i class="fas fa-satellite-dish me-1"></i> Centro de inteligencia delictiva</div>
-        <h1 class="sp-title display-6 mb-1">Panorama nacional de denuncias</h1>
-        <p class="sp-sub mb-0">
-            Perú · {{ ind.anios[0] if ind.anios else '' }}–{{ ind.anios[-1] if ind.anios else '' }} ·
-            datos abiertos SIDPOL procesados con machine learning e IA generativa
-        </p>
-    </div>
-    <span class="sp-live">Sistema operativo</span>
-</div>
+{{ sec.encabezado(1, "Panorama · ¿Qué está pasando?",
+    "Las denuncias bajan desde 2024, pero la extorsión rompe récords",
+    "{:,}".format(pan.total) ~ " denuncias policiales registradas en el Perú entre " ~ pan.anios[0] ~ " y " ~ pan.anios[-1]
+    ~ " (datos abiertos SIDPOL). Así cambió el panorama y hacia dónde va.", "fa-earth-americas") }}
 
 <!-- KPIs -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3 sp-fade d1">
         <div class="sp-kpi cyan">
             <div class="sp-kpi-icon"><i class="fas fa-folder-open"></i></div>
-            <div class="sp-kpi-label">Denuncias registradas</div>
-            <div class="sp-kpi-value" data-count="{{ ind.total_denuncias }}" data-format="compacto">{{ "{:,}".format(ind.total_denuncias) }}</div>
-            <div class="sp-kpi-foot">{{ "{:,}".format(ind.total_registros) }} registros procesados</div>
+            <div class="sp-kpi-label">Denuncias {{ pan.anios[0] }}–{{ pan.anios[-1] }}</div>
+            <div class="sp-kpi-value" data-count="{{ pan.total }}" data-format="compacto">{{ "{:,}".format(pan.total) }}</div>
+            <div class="sp-kpi-foot">Pico en {{ pan.pico }}: {{ "{:,}".format(pan.pico_total) }}</div>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3 sp-fade d2">
+        <div class="sp-kpi green">
+            <div class="sp-kpi-icon"><i class="fas fa-arrow-trend-down"></i></div>
+            <div class="sp-kpi-label">{{ pan.anio_fin }} vs {{ pan.anio_fin - 1 }} ({{ pan.periodo }})</div>
+            <div class="sp-kpi-value">{{ "%+d"|format(pan.var_parcial) }} %</div>
+            <div class="sp-kpi-foot">{{ "{:,}".format(pan.parcial_actual) }} frente a {{ "{:,}".format(pan.parcial_anterior) }}</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3 sp-fade d3">
+        <div class="sp-kpi red">
+            <div class="sp-kpi-icon"><i class="fas fa-mask"></i></div>
+            <div class="sp-kpi-label">Extorsión {{ pan.anio_fin }} ({{ pan.periodo }})</div>
+            <div class="sp-kpi-value" data-count="{{ ext.parcial_actual }}">{{ "{:,}".format(ext.parcial_actual) }}</div>
+            <div class="sp-kpi-foot">{% if ext.record %}Ya supera cualquier año completo anterior{% else %}{{ "%+d"|format(ext.var_parcial) }}% vs {{ pan.anio_fin - 1 }}{% endif %}</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3 sp-fade d4">
         <div class="sp-kpi violet">
             <div class="sp-kpi-icon"><i class="fas fa-chart-line"></i></div>
             <div class="sp-kpi-label">Proyección 2026</div>
             {% if proyeccion %}
             <div class="sp-kpi-value" data-count="{{ proyeccion.total_2026 }}" data-format="compacto">{{ "{:,}".format(proyeccion.total_2026) }}</div>
             <div class="sp-kpi-foot">SARIMA · error de validación {{ proyeccion.mape_sarima }}%</div>
-            {% else %}
-            <div class="sp-kpi-value">—</div>
-            <div class="sp-kpi-foot">Proyección no disponible</div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3 sp-fade d3">
-        <div class="sp-kpi red">
-            <div class="sp-kpi-icon"><i class="fas fa-mask"></i></div>
-            <div class="sp-kpi-label">Extorsión 2021 → 2024</div>
-            {% if ind.extorsion_var is not none %}
-            <div class="sp-kpi-value" data-count="{{ ind.extorsion_var }}" data-prefix="+" data-suffix=" %">+{{ ind.extorsion_var }} %</div>
-            <div class="sp-kpi-foot">{{ "{:,}".format(ind.extorsion_2021) }} → {{ "{:,}".format(ind.extorsion_2024) }} denuncias</div>
-            {% else %}
-            <div class="sp-kpi-value">—</div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3 sp-fade d4">
-        <div class="sp-kpi amber">
-            <div class="sp-kpi-icon"><i class="fas fa-location-crosshairs"></i></div>
-            <div class="sp-kpi-label">Principal foco</div>
-            {% if ind.ranking %}
-            <div class="sp-kpi-value" data-count="{{ ind.ranking[0].pct }}" data-suffix=" %">{{ ind.ranking[0].pct }} %</div>
-            <div class="sp-kpi-foot">{{ ind.ranking[0].nombre }} concentra el total nacional</div>
-            {% else %}
-            <div class="sp-kpi-value">—</div>
-            {% endif %}
+            {% else %}<div class="sp-kpi-value">—</div>{% endif %}
         </div>
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- Evolución anual -->
+<!-- Gráfico principal + qué significa -->
+<div class="row g-4 mb-4">
     <div class="col-lg-8 sp-fade d2">
         <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-wave-square me-2 text-primary"></i>Evolución anual de denuncias</span>
-                {% if ind.anio_pico %}<span class="badge rounded-pill text-bg-dark border border-secondary">Pico: {{ ind.anio_pico }}</span>{% endif %}
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="fas fa-wave-square me-2 text-primary"></i>Denuncias por año</span>
+                <ul class="nav sp-tabs border-0" role="tablist">
+                    <li class="nav-item"><button class="nav-link active py-1" data-bs-toggle="tab" data-bs-target="#vista-anual" type="button">Anual</button></li>
+                    <li class="nav-item"><button class="nav-link py-1" data-bs-toggle="tab" data-bs-target="#vista-trim" type="button">Trimestral</button></li>
+                </ul>
             </div>
             <div class="card-body">
-                <div style="position: relative; height: 300px;"><canvas id="graficoAnual"></canvas></div>
-                <div class="small text-muted mt-2"><i class="fas fa-info-circle me-1"></i>2025 incluye datos hasta {{ proyeccion.ultimo_mes if proyeccion else 'la última carga' }} (año incompleto).</div>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="vista-anual"><div style="position: relative; height: 300px;"><canvas id="graficoAnual"></canvas></div></div>
+                    <div class="tab-pane fade" id="vista-trim"><div style="position: relative; height: 300px;"><canvas id="graficoTrim"></canvas></div></div>
+                </div>
+                <div class="small text-muted mt-2"><i class="fas fa-info-circle me-1"></i>{{ pan.anio_fin }}* incluye datos hasta {{ pan.periodo.split('–')[1] }} (año incompleto).</div>
             </div>
         </div>
     </div>
-
-    <!-- Top departamentos -->
-    <div class="col-lg-4 sp-fade d3">
-        <div class="card h-100">
-            <div class="card-header"><i class="fas fa-fire me-2" style="color: var(--sp-red);"></i>Zonas con más denuncias</div>
-            <div class="card-body">
-                {% for d in ind.ranking %}
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between small mb-1">
-                        <span class="fw-semibold">{{ loop.index }}. {{ d.nombre }}</span>
-                        <span class="text-muted">{{ "{:,}".format(d.total) }}</span>
-                    </div>
-                    <div class="progress" style="height: 6px; background: rgba(148,163,184,.12);">
-                        <div class="progress-bar" style="width: {{ (d.total / ind.ranking[0].total * 100) | round(1) }}%; background: linear-gradient(90deg, #f43f5e, #f59e0b);"></div>
-                    </div>
-                </div>
-                {% endfor %}
-                <a href="{{ url_for('departamentos') }}" class="btn btn-sm btn-outline-primary w-100 mt-1"><i class="fas fa-map-location-dot me-1"></i> Ver mapa del delito</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Módulos -->
-    <div class="col-12 sp-fade d4">
-        <div class="card">
-            <div class="card-header"><i class="fas fa-layer-group me-2 text-primary"></i>Módulos de análisis</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6 col-xl-3">
-                        <a class="sp-tile" href="{{ url_for('prediccion_2026') }}">
-                            <span class="sp-kpi-icon" style="--kpi: var(--sp-violet);"><i class="fas fa-chart-line"></i></span>
-                            <span><strong>Proyección 2026</strong><small>Series de tiempo SARIMA</small></span>
-                        </a>
-                    </div>
-                    <div class="col-md-6 col-xl-3">
-                        <a class="sp-tile" href="{{ url_for('cluster_departamentos') }}">
-                            <span class="sp-kpi-icon" style="--kpi: var(--sp-amber);"><i class="fas fa-circle-nodes"></i></span>
-                            <span><strong>Radar de riesgo</strong><small>Clustering K-Means</small></span>
-                        </a>
-                    </div>
-                    <div class="col-md-6 col-xl-3">
-                        <a class="sp-tile" href="/riesgo-modalidad">
-                            <span class="sp-kpi-icon" style="--kpi: var(--sp-green);"><i class="fas fa-shield-virus"></i></span>
-                            <span><strong>Simulador táctico</strong><small>Random Forest por zona</small></span>
-                        </a>
-                    </div>
-                    <div class="col-md-6 col-xl-3">
-                        <a class="sp-tile" href="/agente-estrategico">
-                            <span class="sp-kpi-icon" style="--kpi: var(--sp-cyan);"><i class="fas fa-robot"></i></span>
-                            <span><strong>Estratega IA</strong><small>Análisis con Gemini</small></span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="col-lg-4">
+        {% set caen = dl.caen[:2] %}
+        {{ sec.que_significa([
+            "En <strong>2020</strong> las denuncias cayeron <strong>" ~ pan.covid_caida ~ "%</strong> por la cuarentena y luego subieron hasta el máximo de <strong>" ~ pan.pico ~ "</strong>.",
+            "Desde 2024 la tendencia es a la baja: en " ~ pan.periodo ~ " de " ~ pan.anio_fin ~ " hubo <strong>" ~ pan.var_parcial|abs ~ "% menos</strong> denuncias, sobre todo por "
+                ~ (caen | map(attribute='modalidad') | map('lower') | join(' y ')) ~ ".",
+            "Pero no todos los delitos bajan: la <strong>extorsión</strong> ya registra en " ~ pan.anio_fin ~ " más casos que en cualquier año completo anterior.",
+        ]) }}
     </div>
 </div>
+
+<!-- Hallazgos clave → cada uno lleva a su sección -->
+<h2 class="h5 text-uppercase sp-eyebrow mt-5 mb-3"><i class="fas fa-magnifying-glass-chart me-1"></i> Los hallazgos clave</h2>
+<div class="row g-3">
+    <div class="col-md-6 col-xl-3 sp-fade d1">
+        {{ sec.hallazgo("red", "fa-mask", "+" ~ ext.var_2021 ~ " %",
+            "Creció la extorsión entre 2021 y " ~ dl.ultimo_completo ~ ". Es el delito que más se disparó.",
+            url_for('delitos'), "Ver delitos") }}
+    </div>
+    <div class="col-md-6 col-xl-3 sp-fade d2">
+        {{ sec.hallazgo("amber", "fa-location-crosshairs", ter.distritos_50 ~ " distritos",
+            "Concentran la mitad de toda la extorsión de " ~ ter.ultimo_completo ~ " (de " ~ ter.distritos_con_casos ~ " con casos).",
+            url_for('territorio'), "Ver territorio") }}
+    </div>
+    <div class="col-md-6 col-xl-3 sp-fade d3">
+        {{ sec.hallazgo("cyan", "fa-venus", ter.vcm_lider ~ " de " ~ ter.n_departamentos,
+            "Departamentos donde la violencia contra la mujer es el delito más denunciado (sin contar «Otros»).",
+            url_for('territorio') ~ "#delito-principal", "Ver por departamento") }}
+    </div>
+    <div class="col-md-6 col-xl-3 sp-fade d4">
+        {{ sec.hallazgo("violet", "fa-chart-line", "{:,}".format(proyeccion.total_2026) if proyeccion else "—",
+            "Denuncias proyectadas para 2026: la tendencia a la baja continuaría, salvo en extorsión.",
+            url_for('prediccion_2026'), "Ver proyección") }}
+    </div>
+</div>
+
+{{ sec.navegacion(siguiente={"url": url_for('delitos'), "texto": "2 · ¿Qué delitos crecen y cuáles bajan?"}) }}
 
 <script>
     (function () {
-        const anios = {{ ind.anios | tojson }};
-        const valores = {{ ind.serie_anual | tojson }};
+        const anios = {{ pan.anios | tojson }};
+        const valores = {{ pan.serie_anual | tojson }};
+        const pico = {{ pan.pico | tojson }};
         const ultimo = anios.length - 1;
         const ctx = document.getElementById('graficoAnual').getContext('2d');
         const grad = ctx.createLinearGradient(0, 0, 0, 300);
@@ -152,26 +125,34 @@
             data: {
                 labels: anios.map((a, i) => i === ultimo ? a + '*' : a),
                 datasets: [{
-                    label: 'Denuncias',
-                    data: valores,
-                    borderRadius: 8,
-                    backgroundColor: valores.map((_, i) => i === ultimo ? 'rgba(148, 163, 184, 0.35)' : grad),
-                    hoverBackgroundColor: 'rgba(34, 211, 238, 1)'
+                    data: valores, borderRadius: 8,
+                    backgroundColor: anios.map((a, i) => i === ultimo ? 'rgba(148,163,184,0.35)' : (a === pico ? 'rgba(245,158,11,0.9)' : (a === 2020 ? 'rgba(139,92,246,0.7)' : grad)))
                 }]
             },
             options: {
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: c => ' ' + c.raw.toLocaleString('es-PE') + ' denuncias' } }
-                },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, ticks: { callback: v => (v / 1e6).toFixed(1) + ' M' } }
-                }
+                plugins: { legend: { display: false },
+                    tooltip: { callbacks: {
+                        label: c => ' ' + c.raw.toLocaleString('es-PE') + ' denuncias',
+                        afterLabel: c => anios[c.dataIndex] === pico ? ' Máximo histórico' : (anios[c.dataIndex] === 2020 ? ' Cuarentena COVID-19' : (c.dataIndex === ultimo ? ' Año incompleto' : ''))
+                    } } },
+                scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { callback: v => (v / 1e6).toFixed(1) + ' M' } } }
             }
+        });
+
+        let trimHecho = false;
+        document.querySelector('[data-bs-target="#vista-trim"]').addEventListener('shown.bs.tab', function () {
+            if (trimHecho) return; trimHecho = true;
+            new Chart(document.getElementById('graficoTrim'), {
+                type: 'line',
+                data: { labels: {{ pan.trim_etiquetas | tojson }},
+                        datasets: [{ data: {{ pan.trim_valores | tojson }}, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false },
+                           tooltip: { callbacks: { label: c => ' ' + c.raw.toLocaleString('es-PE') + ' denuncias' } } },
+                           scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }, y: { beginAtZero: true, ticks: { callback: v => Math.round(v / 1e3) + ' K' } } } }
+            });
         });
     })();
 </script>
-
+{% endif %}
 {% endblock %}

@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% import "_seccion.html" as sec %}
 
-{% block title %}Estratega IA - SIDPOL{% endblock %}
+{% block title %}IA estratégica - SIDPOL{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <h2 class="fw-bold mb-1"><i class="fas fa-chess-knight text-primary me-2"></i>Agente Estratégico</h2>
-    <p class="text-muted mb-0">Análisis generado por IA a partir de la proyección 2026 y la tendencia reciente de denuncias.</p>
-</div>
+{{ sec.encabezado(5, "IA estratégica · ¿Qué se puede hacer?",
+    "De los datos a las decisiones: un análisis estratégico generado por IA",
+    "Gemini recibe la proyección 2026 y la evolución de cada delito, y propone un diagnóstico y acciones. Solo usa los datos de SIDPOL; no inventa cifras.",
+    "fa-chess-knight") }}
 
 <div class="row g-4">
     <div class="col-lg-4">
@@ -35,4 +36,18 @@
         </div>
     </div>
 </div>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-7">
+        {{ sec.que_significa([
+            "El análisis se genera <strong>una vez al día</strong> con los datos más recientes y se guarda, para no gastar consultas en cada visita.",
+            "Las reglas del asistente van separadas de los datos (<em>system instruction</em>), lo que reduce el riesgo de manipulación por <strong>prompt injection</strong>.",
+            "Para preguntas propias, usa el <strong>chat</strong> (botón azul abajo a la derecha): responde con los datos de SIDPOL.",
+        ], "Cómo funciona") }}
+    </div>
+</div>
+
+{{ sec.navegacion(
+    anterior={"url": url_for('prediccion_2026'), "texto": "4 · Proyección 2026"},
+    siguiente={"url": url_for('metodologia'), "texto": "6 · ¿Por qué creerle a los datos?"}) }}
 {% endblock %}

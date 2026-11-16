@@ -45,6 +45,8 @@ def base_limpia():
             {"username": usuario, "password": generate_password_hash(clave), "rol": rol}
         )
     sidpol.limiter.reset()
+    import analitica
+    analitica.limpiar_cache()
     sidpol.app.config["TESTING"] = True
     yield db
 

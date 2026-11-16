@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% import "_seccion.html" as sec %}
+
+{% block title %}Territorio - SIDPOL{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.8/highmaps.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.3.0/countries/pe/pe-all.js"></script>
+
+{% if not t or t.focos|length < 3 or not t.departamentos %}
+<div class="alert alert-warning">No hay datos suficientes para mostrar esta sección.</div>
+{% else %}
+{% set top = t.departamentos[0] %}
+{% set costa = t.regiones | selectattr('region', 'equalto', 'Costa') | first %}
+
+{{ sec.encabezado(3, "Territorio · ¿Dónde ocurre?",
+    "La mitad de la extorsión del país ocurre en solo " ~ t.distritos_50 ~ " distritos",
+    "Del departamento al distrito: dónde se concentran las denuncias y dónde se dispara la extorsión.",
+    "fa-map-location-dot") }}
+
+<div class="row g-4 mb-2">
+    <div class="col-lg-8">
+        <ul class="nav sp-tabs mb-3" id="tabsTerritorio" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#distritos" type="button"><i class="fas fa-crosshairs me-1"></i>Focos de extorsión</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mapa" type="button"><i class="fas fa-map me-1"></i>Mapa</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tasa" type="button"><i class="fas fa-users me-1"></i>Por habitante</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#radar" type="button"><i class="fas fa-circle-nodes me-1"></i>Niveles de riesgo</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#delito-principal" type="button"><i class="fas fa-venus me-1"></i>Delito principal</button></li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Focos de extorsión por distrito -->
+            <div class="tab-pane fade show active" id="distritos">
+                <div class="card"><div class="card-body">
+                    <h3 class="h6 mb-1">Los 15 distritos con más denuncias de extorsión en {{ t.ultimo_completo }}</h3>
+                    <p class="small text-muted mb-3">Entre paréntesis, el crecimiento frente a 2021.</p>
+                    <div style="position: relative; height: 420px;"><canvas id="graficoFocos"></canvas></div>
+                </div></div>
+            </div>
+
+            <!-- Mapa -->
+            <div class="tab-pane fade" id="mapa">
+                <div class="card"><div class="card-body p-2">
+                    <div id="container-mapa" style="height: 560px;"></div>
+                    <p class="small text-muted px-2 mb-1">Total de denuncias 2018–2025. Escala logarítmica de azul (menos) a rojo (más). Usa la rueda del mouse para acercar.</p>
+                </div></div>
+            </div>
+
+            <!-- Tasa por 100 mil habitantes -->
+            <div class="tab-pane fade" id="tasa">
+                <div class="card"><div class="card-body">
+                    <h3 class="h6 mb-1">Denuncias por cada 100 mil habitantes ({{ t.ultimo_completo }})</h3>
+                    <p class="small text-muted mb-3">Corrige el efecto del tamaño de la población: no siempre el departamento más poblado es el más afectado.</p>
+                    <div style="position: relative; height: 560px;"><canvas id="graficoTasa"></canvas></div>
+                </div></div>
+            </div>
+
+            <!-- Niveles de riesgo (K-Means) -->
+            <div class="tab-pane fade" id="radar">
+                <div class="card"><div class="card-body">
+                    <h3 class="h6 mb-1">Clasificación automática en 3 niveles de riesgo (K-Means)</h3>
+                    <p class="small text-muted mb-3">
+                        El algoritmo agrupa los departamentos según su volumen de denuncias:
+                        <span style="color:#f43f5e">■</span> crítico ({{ stats.alto }}),
+                        <span style="color:#f59e0b">■</span> medio ({{ stats.medio }}),
+                        <span style="color:#10b981">■</span> bajo ({{ stats.bajo }}). Escala logarítmica.
+                    </p>
+                    <div style="position: relative; height: 560px;"><canvas id="graficoRadar"></canvas></div>
+                </div></div>
+            </div>
+
+            <!-- Delito principal por departamento -->
+            <div class="tab-pane fade" id="delito-principal">
+                <div class="card"><div class="card-body">
+                    <h3 class="h6 mb-1">Delito más denunciado en cada departamento ({{ t.ultimo_completo }}, sin «Otros»)</h3>
+                    <p class="small text-muted mb-3">
+                        La violencia contra la mujer es el principal delito en <strong>{{ t.vcm_lider }} de {{ t.n_departamentos }}</strong> departamentos;
+                        el hurto lidera en los grandes centros urbanos.
+                    </p>
+                    <div class="row g-2">
+                        {% for dpto in t.departamentos %}
+                        {% set m = t.principal.get(dpto.codigo, '—') %}
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 rounded-3" style="background: rgba(255,255,255,.02); border: 1px solid var(--sp-border);">
+                                <span class="small fw-semibold">{{ dpto.nombre }}</span>
+                                <span class="sp-chip {{ 'up' if m.startswith('Violencia') else 'flat' }}">{{ 'Violencia c/ mujer' if m.startswith('Violencia') else m }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {% set f1, f2, f3 = t.focos[0], t.focos[1], t.focos[2] %}
+        {% set tasa1 = t.tasa_top[0] if t.tasa_top else None %}
+        {{ sec.que_significa([
+            "<strong>" ~ t.distritos_50 ~ " de " ~ t.distritos_con_casos ~ "</strong> distritos con casos concentran el 50% de la extorsión: " ~ f1.distrito ~ ", " ~ f2.distrito ~ " y " ~ f3.distrito ~ " encabezan la lista.",
+            "Los focos crecieron varias veces desde 2021: " ~ f2.distrito ~ " <strong>+" ~ f2.var ~ "%</strong>, " ~ f1.distrito ~ " <strong>+" ~ f1.var ~ "%</strong>.",
+            "<strong>" ~ top.nombre ~ "</strong> concentra el " ~ top.pct ~ "% de todas las denuncias y la <strong>costa</strong> el " ~ costa.pct ~ "%.",
+            ("Por habitante, el departamento más afectado es <strong>" ~ tasa1.nombre ~ "</strong> (" ~ "{:,}".format(tasa1.tasa) ~ " denuncias por 100 mil)." if tasa1 else ""),
+        ]) }}
+
+        <div class="card mt-3">
+            <div class="card-header"><i class="fas fa-earth-americas me-2 text-primary"></i>Por región natural</div>
+            <div class="card-body" id="regiones">
+                {% for r in t.regiones %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">{{ r.region }}</span><span class="text-muted">{{ r.pct }}% · {{ "{:,}".format(r.total) }}</span></div>
+                    <div class="progress" style="height: 6px; background: rgba(148,163,184,.12);"><div class="progress-bar" style="width: {{ r.pct }}%; background: linear-gradient(90deg, #0891b2, #22d3ee);"></div></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% call sec.plegable("Ver tabla: departamentos") %}
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+        <thead><tr><th>Departamento</th><th>Región</th><th class="text-end">Denuncias 2018–2025</th><th class="text-end">% del total</th><th class="text-end">{{ t.ultimo_completo }}</th><th class="text-end">Por 100 mil hab.</th></tr></thead>
+        <tbody>
+        {% for d in t.departamentos %}
+        <tr><td class="fw-semibold">{{ d.nombre }}</td><td>{{ d.region }}</td><td class="text-end">{{ "{:,}".format(d.total) }}</td><td class="text-end">{{ d.pct }}%</td><td class="text-end">{{ "{:,}".format(d.anual) }}</td><td class="text-end">{{ "{:,}".format(d.tasa) if d.tasa else '—' }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="small text-muted mt-2">La población usada para la tasa es una estimación aproximada (ver Metodología).</div>
+{% endcall %}
+
+{{ sec.navegacion(
+    anterior={"url": url_for('delitos'), "texto": "2 · Delitos"},
+    siguiente={"url": url_for('prediccion_2026'), "texto": "4 · ¿Qué viene en 2026?"}) }}
+
+<script>
+    (function () {
+        const t = {{ t | tojson }};
+        const clusters = {{ clusters | tojson }};
+        const dataMapa = {{ data_mapa | tojson }};
+        const hechos = {};
+        const enTab = (id, fn) => {
+            const btn = document.querySelector(`[data-bs-target="#${id}"]`);
+            const correr = () => { if (!hechos[id]) { hechos[id] = true; fn(); } };
+            if (document.getElementById(id).classList.contains('active')) correr();
+            btn.addEventListener('shown.bs.tab', correr);
+        };
+
+        enTab('distritos', () => new Chart(document.getElementById('graficoFocos'), {
+            type: 'bar',
+            data: {
+                labels: t.focos.map(f => `${f.distrito} (${f.departamento})`),
+                datasets: [{ data: t.focos.map(f => f.actual), borderRadius: 6,
+                             backgroundColor: t.focos.map((f, i) => i < 3 ? 'rgba(244,63,94,0.9)' : 'rgba(244,63,94,0.45)') }]
+            },
+            options: {
+                indexAxis: 'y', maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: {
+                    label: c => ' ' + c.raw.toLocaleString('es-PE') + ' denuncias',
+                    afterLabel: c => { const f = t.focos[c.dataIndex]; return f.var != null ? ` 2021: ${f.anterior.toLocaleString('es-PE')} (+${f.var}%)` : ' Sin casos en 2021'; } } } },
+                scales: { x: { beginAtZero: true }, y: { grid: { display: false }, ticks: { autoSkip: false, callback: function (v) { const f = t.focos[v]; const extra = f.var != null ? `(+${f.var}%)` : ''; return f.distrito.length > 16 ? [f.distrito, extra] : `${f.distrito} ${extra}`; } } } }
+            }
+        }));
+
+        enTab('mapa', () => Highcharts.mapChart('container-mapa', {
+            chart: { map: 'countries/pe/pe-all', backgroundColor: 'transparent', style: { fontFamily: 'Inter, sans-serif' } },
+            title: { text: '' }, credits: { style: { color: '#64748b' } },
+            mapNavigation: { enabled: true, buttonOptions: { verticalAlign: 'bottom' } },
+            legend: { itemStyle: { color: '#a8b3c7' } },
+            colorAxis: { type: 'logarithmic', stops: [[0, '#0b2540'], [0.45, '#0e7490'], [0.7, '#22d3ee'], [0.85, '#f59e0b'], [1, '#f43f5e']], labels: { style: { color: '#a8b3c7' } } },
+            tooltip: { backgroundColor: 'rgba(13,22,40,0.95)', borderColor: '#22d3ee', style: { color: '#f8fafc' }, pointFormat: '{point.name}: <b>{point.value:,.0f}</b> denuncias' },
+            series: [{ data: dataMapa, name: 'Denuncias', borderColor: 'rgba(6,11,22,0.9)', nullColor: '#1e293b',
+                       states: { hover: { color: '#f59e0b' } },
+                       dataLabels: { enabled: true, format: '{point.name}', style: { color: '#e2e8f0', textOutline: '1px #060b16', fontWeight: '500', fontSize: '10px' } } }]
+        }));
+
+        enTab('tasa', () => {
+            const ds = t.departamentos.filter(d => d.tasa).sort((a, b) => b.tasa - a.tasa);
+            new Chart(document.getElementById('graficoTasa'), {
+                type: 'bar',
+                data: { labels: ds.map(d => d.nombre), datasets: [{ data: ds.map(d => d.tasa), borderRadius: 4,
+                        backgroundColor: ds.map((d, i) => i < 5 ? 'rgba(245,158,11,0.9)' : 'rgba(34,211,238,0.55)') }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false },
+                           tooltip: { callbacks: { label: c => ' ' + c.raw.toLocaleString('es-PE') + ' por 100 mil hab.' } } },
+                           scales: { y: { grid: { display: false } } } }
+            });
+        });
+
+        enTab('radar', () => {
+            const ds = [...clusters].sort((a, b) => b.total - a.total);
+            new Chart(document.getElementById('graficoRadar'), {
+                type: 'bar',
+                data: { labels: ds.map(d => d.departamento === 'PROV. CONST. DEL CALLAO' ? 'Callao' : d.departamento.replace('REGION LIMA', 'Lima Provincias').toLowerCase().replace(/(^|\s)\S/g, s => s.toUpperCase())),
+                        datasets: [{ data: ds.map(d => d.total), backgroundColor: ds.map(d => d.color), borderRadius: 4 }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false },
+                           tooltip: { callbacks: { label: c => ' ' + c.raw.toLocaleString('es-PE') + ' denuncias · riesgo ' + ds[c.dataIndex].etiqueta.toLowerCase() } } },
+                           scales: { x: { type: 'logarithmic', ticks: { callback: v => [1e4, 1e5, 1e6, 1e7].includes(v) ? (v >= 1e6 ? v / 1e6 + ' M' : v / 1e3 + ' K') : '' } }, y: { grid: { display: false } } } }
+            });
+        });
+
+        // Abre la pestaña indicada en la URL (p. ej. /territorio#mapa)
+        // (espera a que cargue Bootstrap, que se incluye al final de la página)
+        window.addEventListener('load', () => {
+            const hash = window.location.hash.replace('#', '');
+            const btn = hash && document.querySelector(`[data-bs-target="#${hash}"]`);
+            if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+            else if (hash === 'regiones') document.getElementById('regiones').scrollIntoView({ behavior: 'smooth' });
+        });
+    })();
+</script>
+{% endif %}
+{% endblock %}

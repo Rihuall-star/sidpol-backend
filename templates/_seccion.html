@@ -1,0 +1,57 @@
+{# Bloques comunes de las secciones de SIDPOL: misma estructura en todas las páginas #}
+
+{# Encabezado: número de sección + pregunta + titular (el hallazgo) + bajada #}
+{% macro encabezado(numero, pregunta, titular, bajada=None, icono='fa-circle') %}
+<header class="sp-section-head sp-fade">
+    <div class="sp-eyebrow mb-2">
+        <span class="sp-step">{{ numero }}</span>
+        <i class="fas {{ icono }} ms-1 me-1"></i>{{ pregunta }}
+    </div>
+    <h1 class="sp-title sp-headline mb-2">{{ titular }}</h1>
+    {% if bajada %}<p class="sp-sub fs-6 mb-0">{{ bajada }}</p>{% endif %}
+</header>
+{% endmacro %}
+
+{# "Qué significa": 2-4 conclusiones en lenguaje simple #}
+{% macro que_significa(puntos, titulo='Qué significa') %}
+<div class="sp-insight sp-fade d2">
+    <div class="sp-insight-title"><i class="fas fa-lightbulb me-2"></i>{{ titulo }}</div>
+    <ul class="mb-0">
+        {% for p in puntos %}<li>{{ p | safe }}</li>{% endfor %}
+    </ul>
+</div>
+{% endmacro %}
+
+{# Detalle plegable (tablas, metodología corta) #}
+{% macro plegable(titulo, icono='fa-table') %}
+<details class="sp-details">
+    <summary><i class="fas {{ icono }} me-2"></i>{{ titulo }}</summary>
+    <div class="sp-details-body">{{ caller() }}</div>
+</details>
+{% endmacro %}
+
+{# Navegación de la historia: anterior / siguiente #}
+{% macro navegacion(anterior=None, siguiente=None) %}
+<nav class="sp-story-nav d-flex justify-content-between gap-3 mt-5">
+    {% if anterior %}
+    <a class="sp-story-link" href="{{ anterior.url }}">
+        <small>← Anterior</small><span>{{ anterior.texto }}</span>
+    </a>
+    {% else %}<span></span>{% endif %}
+    {% if siguiente %}
+    <a class="sp-story-link text-end" href="{{ siguiente.url }}">
+        <small>Siguiente →</small><span>{{ siguiente.texto }}</span>
+    </a>
+    {% endif %}
+</nav>
+{% endmacro %}
+
+{# Tarjeta de hallazgo enlazada a una sección #}
+{% macro hallazgo(color, icono, cifra, texto, url, etiqueta) %}
+<a class="sp-finding sp-kpi {{ color }}" href="{{ url }}">
+    <div class="sp-kpi-icon"><i class="fas {{ icono }}"></i></div>
+    <div class="sp-kpi-value">{{ cifra }}</div>
+    <div class="sp-finding-text">{{ texto }}</div>
+    <div class="sp-finding-link">{{ etiqueta }} <i class="fas fa-arrow-right ms-1"></i></div>
+</a>
+{% endmacro %}

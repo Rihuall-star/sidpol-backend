@@ -40,32 +40,12 @@
                 
                 {% if current_user.is_authenticated %}
                 <ul class="navbar-nav me-auto mb-2 mb-xl-0">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a></li>
-                    
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-chart-pie me-1"></i> Reportes</a>
-                        <ul class="dropdown-menu shadow border-0">
-                            <li><a class="dropdown-item" href="{{ url_for('resumen_anual') }}">Resumen Anual</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('departamentos') }}">Departamentos</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('regiones') }}">Regiones</a></li> <li><a class="dropdown-item" href="{{ url_for('departamentos_percapita') }}">Deptos Per Cápita</a></li> <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/reporte-lima"><i class="fas fa-city me-1"></i> Reporte Lima</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-microscope me-1"></i> Análisis</a>
-                        <ul class="dropdown-menu shadow border-0">
-                            <li><a class="dropdown-item" href="{{ url_for('modalidades') }}">Modalidades Delictivas</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('trimestres') }}">Trimestres</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('cluster_departamentos') }}"><i class="fas fa-project-diagram me-1"></i> Clustering (K-Means)</a></li> <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('comparativa_foco') }}"><i class="fas fa-crosshairs me-1"></i> Extorsión vs Homicidio</a></li> </ul>
-                    </li>
-
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('prediccion_2026') }}"><i class="fas fa-chart-line me-1"></i> Proyección 2026</a></li>
-                    
-                    <li class="nav-item"><a class="nav-link" href="/riesgo-modalidad">
-                        <i class="fas fa-shield-virus me-1"></i> Riesgo Modalidad
-                    </a></li> <li class="nav-item"><a class="nav-link" href="/agente-estrategico"><i class="fas fa-user-secret me-1"></i> Estratega IA</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><span class="sp-step">1</span>Panorama</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('delitos') }}"><span class="sp-step">2</span>Delitos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('territorio') }}"><span class="sp-step">3</span>Territorio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('prediccion_2026') }}"><span class="sp-step">4</span>Proyección</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('agente_estrategico') }}"><span class="sp-step">5</span>IA estratégica</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('metodologia') }}"><span class="sp-step">6</span>Metodología</a></li>
                 </ul>
                 {% else %}<div class="me-auto"></div>{% endif %}
 
@@ -121,8 +101,11 @@
             <div class="text-muted small">
                 <span>&copy; SIDPOL · Sistema de Inteligencia Policial · Datos abiertos SIDPOL 2018–2025</span>
             </div>
-            <div class="d-flex align-items-center mt-2 mt-md-0">
-                <span class="small text-muted me-2">Respaldado por:</span>
+            <div class="d-flex align-items-center mt-2 mt-md-0 gap-3">
+                <button class="btn btn-sm btn-outline-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#modalEquipo">
+                    <i class="fas fa-users me-1"></i> Equipo
+                </button>
+                <span class="small text-muted">Respaldado por:</span>
                 <img src="{{ url_for('static', filename='img/logo_unmsm.png') }}" alt="UNMSM" style="height: 40px; opacity: 0.9;" onerror="this.style.display='none';">
             </div>
         </div>
@@ -158,11 +141,7 @@
     </div>
     {% endif %}
 
-    <div style="position: fixed; bottom: 20px; left: 20px; z-index: 990;">
-        <button class="btn btn-dark btn-sm rounded-pill shadow" data-bs-toggle="modal" data-bs-target="#modalEquipo">
-            <i class="fas fa-users me-1"></i> Equipo
-        </button>
-    </div>
+
 
     <div class="modal fade" id="modalEquipo" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">

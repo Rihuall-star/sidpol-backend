@@ -27,6 +27,7 @@ from ml_utils import (
     db, predecir_total_2026, proyeccion_2026, obtener_contexto_ia,
     entrenar_modelo_riesgo, predecir_valor_especifico
 )
+import analitica
 from mongo_queries import ranking_departamentos
 from ml_cluster import clusterizar_departamentos
 from ml_llm import (
@@ -69,7 +70,7 @@ limiter = Limiter(get_remote_address, app=app, storage_uri="memory://", default_
 CSP = "; ".join([
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com "
-    "https://code.jquery.com https://cdn.plot.ly",
+    "https://code.jquery.com",
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:",
     "img-src 'self' data: blob:",
@@ -268,54 +269,14 @@ def index():
     except Exception as e:
         print(f"⚠️ Error en contador de visitas: {e}")
 
-    ind = indicadores_dashboard(col)
-
     try:
         proyeccion = proyeccion_2026(col)
     except Exception as e:
         print(f"Proyección no disponible en el dashboard: {e}")
         proyeccion = None
 
-    return render_template("index.html", ind=ind, proyeccion=proyeccion, visitas=visitas)
-
-
-_cache_dashboard = {"dia": None, "datos": None}
-
-
-def indicadores_dashboard(col):
-    """KPIs del dashboard. Se calculan una vez al día (los datos cambian poco)."""
-    hoy = datetime.now().strftime("%Y-%m-%d")
-    if _cache_dashboard["dia"] == hoy and _cache_dashboard["datos"]:
-        return _cache_dashboard["datos"]
-
-    por_anio = list(col.aggregate([
-        {"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}}, {"$sort": {"_id": 1}}
-    ]))
-    por_anio = [d for d in por_anio if str(d["_id"]).isdigit()]
-    total = sum(d["total"] for d in por_anio)
-
-    extorsion = {d["_id"]: d["total"] for d in col.aggregate([
-        {"$match": {"P_MODALIDADES": "Extorsión", "ANIO": {"$in": [2021, 2024]}}},
-        {"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}},
-    ])}
-    e21, e24 = extorsion.get(2021, 0), extorsion.get(2024, 0)
-
-    ranking = [d for d in ranking_departamentos(col, n=6) if d.get("_id")][:5]
-
-    datos = {
-        "total_denuncias": total,
-        "total_registros": col.estimated_document_count(),
-        "anios": [int(d["_id"]) for d in por_anio],
-        "serie_anual": [int(d["total"]) for d in por_anio],
-        "anio_pico": int(max(por_anio, key=lambda d: d["total"])["_id"]) if por_anio else None,
-        "extorsion_2021": e21,
-        "extorsion_2024": e24,
-        "extorsion_var": round((e24 - e21) / e21 * 100) if e21 else None,
-        "ranking": [{"nombre": str(d["_id"]).title(), "total": d["total"],
-                     "pct": round(d["total"] / total * 100, 1) if total else 0} for d in ranking],
-    }
-    _cache_dashboard.update(dia=hoy, datos=datos)
-    return datos
+    return render_template("index.html", pan=analitica.panorama(col), dl=analitica.delitos(col),
+                           ter=analitica.territorio(col), proyeccion=proyeccion, visitas=visitas)
 
 # ============================================================
 #  MÓDULO: AUDITORÍA Y USUARIOS ACTIVOS
@@ -343,21 +304,8 @@ def usuarios_activos():
 # ============================================================
 #  RUTAS DE REPORTES BÁSICOS
 # ============================================================
-@app.route("/resumen-anual")
-@login_required
-def resumen_anual():
-    pipeline = [
-        {"$group": {"_id": "$ANIO", "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"_id": 1}}
-    ]
-    datos = list(col.aggregate(pipeline))
-    labels = [doc["_id"] for doc in datos]
-    valores = [doc["total"] for doc in datos]
-    return render_template("resumen_anual.html", labels=labels, valores=valores, tabla=datos)
-
-@app.route('/departamentos')
-@login_required
-def departamentos():
+def datos_mapa():
+    """Datos del mapa de calor por departamento (códigos verificados de Highcharts)."""
     # Traemos 50 para asegurar que vengan todos, incluso los pequeños
     data_raw = ranking_departamentos(col, n=50) 
     
@@ -431,14 +379,12 @@ def departamentos():
             # Esto nos ayudará a ver en los logs de Render si algún nombre sigue fallando
             print(f"⚠️ NO MAPEADO EN MAPA: {nombre_bd}")
 
-    return render_template('departamentos.html', data_mapa=data_mapa, top_5=top_5)
+    return data_mapa, top_5
 
-# ============================================================
-# CLUSTERING (K-MEANS) - LA FUNCIÓN QUE FALTABA
-# ============================================================
-@app.route('/cluster-departamentos')
-@login_required
-def cluster_departamentos():
+
+
+def datos_clusters():
+    """Clasifica los departamentos en 3 niveles de riesgo con K-Means."""
     # Agrupamos datos por departamento
     pipeline = [
         {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
@@ -449,7 +395,7 @@ def cluster_departamentos():
     # Limpieza de nulos
     data_clean = [d for d in data_bd if d["_id"]]
     
-    if len(data_clean) < 3: return "Datos insuficientes para clusters."
+    if len(data_clean) < 3: return [], {"bajo": 0, "medio": 0, "alto": 0}
 
     # Preparamos datos para Machine Learning
     nombres = [d["_id"] for d in data_clean]
@@ -463,7 +409,7 @@ def cluster_departamentos():
     centroides = kmeans.cluster_centers_.flatten()
     mapa_orden = {old: new for new, old in enumerate(np.argsort(centroides))}
     
-    colores = ['#28a745', '#ffc107', '#dc3545'] # Verde, Amarillo, Rojo
+    colores = ['#10b981', '#f59e0b', '#f43f5e'] # Verde, Amarillo, Rojo
     etiquetas = ['Bajo', 'Medio', 'Alto']
     
     resultados = []
@@ -483,214 +429,99 @@ def cluster_departamentos():
         "alto": sum(1 for r in resultados if r['cluster'] == 2)
     }
     
-    return render_template('cluster_departamentos.html', data=resultados, stats=stats)
+    return resultados, stats
 
-@app.route("/departamentos-percapita")
-@login_required
-def departamentos_percapita():
-    pipeline = [
-        {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"_id": 1}}
-    ]
-    datos = list(col.aggregate(pipeline))
-    
-    # Poblaciones aproximadas (INEI)
-    poblaciones = {
-        "MADRE DE DIOS": 184083,
-        "AREQUIPA": 1523839,
-        "LAMBAYEQUE": 1367029,
-        "MOQUEGUA": 200973,
-        "ICA": 1004829,
-        "TUMBES": 280723,
-        "TACNA": 397737,
-        "APURIMAC": 436820,
-        "JUNIN": 1418738,
-        "CUSCO": 1428028,
-        "ANCASH": 1202828,
-        "HUANUCO": 782039,
-        "AMAZONAS": 458022,
-        "LA LIBERTAD": 2078028,
-        "PIURA": 2138730,
-        "AYACUCHO": 671182,
-        "UCAYALI": 568028,
-        "SAN MARTIN": 924292,
-        "PASCO": 278028,
-        "CAJAMARCA": 1503836,
-        "PUNO": 1268093,
-        "LORETO": 1138637,
-        "HUANCAVELICA": 371038,
-        "LIMA METROPOLITANA": 11810722,
-        "REGION LIMA": 1092827,
-        "PROV. CONST. DEL CALLAO": 1147628,
-        # ... completa las demás
-    }
 
-    tabla = []
-    for d in datos:
-        depto = d["_id"]
-        total = d["total"]
-        pob = poblaciones.get(depto, 1000000) # Default para evitar error div/0
-        tasa = (total / pob) * 100000
-        tabla.append({"departamento": depto, "total": total, "poblacion": pob, "tasa": tasa})
-
-    tabla = sorted(tabla, key=lambda x: x["tasa"], reverse=True)
-    labels = [r["departamento"] for r in tabla]
-    valores = [r["tasa"] for r in tabla]
-
-    return render_template("departamentos_percapita.html", labels=labels, valores=valores, tabla=tabla)
-
-@app.route("/regiones")
-@login_required
-def regiones():
-    pipeline = [{"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}}]
-    datos = list(col.aggregate(pipeline))
-    
-    # DICCIONARIO EXACTO (Copiado de tus datos reales)
-    mapa_regiones = {
-        # COSTA
-        "TUMBES": "Costa", 
-        "PIURA": "Costa", 
-        "LAMBAYEQUE": "Costa", 
-        "LA LIBERTAD": "Costa", 
-        "ANCASH": "Costa", 
-        "LIMA METROPOLITANA": "Costa",      # <--- ¡AQUÍ ESTABA EL FANTASMA!
-        "REGION LIMA": "Costa",             # <--- Y AQUÍ
-        "PROV. CONST. DEL CALLAO": "Costa", 
-        "CALLAO": "Costa",
-        "ICA": "Costa", 
-        "AREQUIPA": "Costa", 
-        "MOQUEGUA": "Costa", 
-        "TACNA": "Costa",
-
-        # SIERRA
-        "CAJAMARCA": "Sierra", 
-        "HUANUCO": "Sierra", 
-        "PASCO": "Sierra", 
-        "JUNIN": "Sierra", 
-        "HUANCAVELICA": "Sierra", 
-        "AYACUCHO": "Sierra", 
-        "APURIMAC": "Sierra", 
-        "CUSCO": "Sierra", 
-        "PUNO": "Sierra",
-
-        # SELVA
-        "AMAZONAS": "Selva", 
-        "LORETO": "Selva", 
-        "SAN MARTIN": "Selva", 
-        "UCAYALI": "Selva", 
-        "MADRE DE DIOS": "Selva"
-    }
-    
-    acumulado = {"Costa": 0, "Sierra": 0, "Selva": 0}
-    
-    for d in datos:
-        if not d.get("_id"):
-            continue  # registros sin departamento (0 denuncias): no tienen región
-        nombre_bd = str(d["_id"]).strip().upper()
-
-        # Clasificación directa
-        region = mapa_regiones.get(nombre_bd)
-        
-        if region:
-            acumulado[region] += d["total"]
-        else:
-            # Si falla, miramos en los logs (Render) qué nombre raro apareció
-            print(f"⚠️ DATO SIN REGIÓN: '{nombre_bd}'") 
-            
-            # Fallback de seguridad para no perder datos (Asumimos Costa para Lima/Callao raros)
-            if "LIMA" in nombre_bd or "CALLAO" in nombre_bd:
-                acumulado["Costa"] += d["total"]
-
-    tabla = [
-        {"_id": "Costa", "total": acumulado["Costa"]},
-        {"_id": "Sierra", "total": acumulado["Sierra"]},
-        {"_id": "Selva", "total": acumulado["Selva"]}
-    ]
-    
-    tabla = sorted(tabla, key=lambda x: x["total"], reverse=True)
-    
-    return render_template("regiones.html", 
-                           labels=[x["_id"] for x in tabla], 
-                           valores=[x["total"] for x in tabla], 
-                           tabla=tabla)
 
 # ============================================================
-#  RUTAS DE ANÁLISIS TÉCNICO
+#  RUTAS ANTIGUAS → SECCIONES NUEVAS (no se rompen enlaces)
 # ============================================================
-@app.route("/modalidades")
+def _redirigir(endpoint, ancla=None):
+    url = url_for(endpoint)
+    return redirect(f"{url}#{ancla}" if ancla else url)
+
+
+@app.route("/resumen-anual")
 @login_required
-def modalidades():
-    pipeline = [
-        {"$group": {"_id": "$P_MODALIDADES", "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"total": -1}}
-    ]
-    datos = list(col.aggregate(pipeline))
-    return render_template("modalidades.html", labels=[d["_id"] for d in datos], valores=[d["total"] for d in datos], tabla=datos)
+def resumen_anual():
+    return _redirigir("index")
+
 
 @app.route("/trimestres")
 @login_required
 def trimestres():
-    pipeline = [
-        {"$group": {"_id": "$anio_trimestre", "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"_id": 1}}
-    ]
-    datos = list(col.aggregate(pipeline))
-    return render_template("trimestres.html", labels=[d["_id"] for d in datos], valores=[d["total"] for d in datos], tabla=datos)
+    return _redirigir("index")
 
 
-@app.route('/comparativa-foco')
+@app.route("/modalidades")
+@login_required
+def modalidades():
+    return _redirigir("delitos")
+
+
+@app.route("/comparativa-foco")
 @login_required
 def comparativa_foco():
-    pipeline = [
-        {"$match": {"P_MODALIDADES": {"$in": ["Extorsión", "Homicidio"]}}},
-        {"$group": {"_id": {"trimestre": "$trimestre", "mod": "$P_MODALIDADES"}, "total": {"$sum": "$cantidad"}}}
-    ]
-    res = list(col.aggregate(pipeline))
-    
-    chart_data = {"Extorsión": {}, "Homicidio": {}}
-    for r in res:
-        mod = r["_id"].get("mod")
-        tri = r["_id"].get("trimestre")
-        if mod in chart_data and tri:
-            chart_data[mod][tri] = r["total"]
-            
-    return render_template('comparativa_foco.html', datos=chart_data)
+    return _redirigir("delitos", "extorsion")
 
-@app.route('/reporte-lima')
+
+@app.route("/reporte-lima")
 @login_required
 def reporte_lima():
-    pipeline = [
-        {
-            "$match": {
-                "DPTO_HECHO_NEW": {"$regex": "LIMA", "$options": "i"},
-                "P_MODALIDADES": {"$in": [re.compile("EXTORSI", re.I), re.compile("HOMICIDI", re.I)]}
-            }
-        },
-        {
-            "$project": {
-                "anio": "$ANIO", "trimestre": {"$ifNull": ["$trimestre", "T1"]}, "cantidad": "$cantidad",
-                "modalidad": {"$cond": [{"$regexMatch": {"input": "$P_MODALIDADES", "regex": "EXTORSI", "options": "i"}}, "Extorsión", "Homicidio"]}
-            }
-        },
-        {"$group": {"_id": {"anio": "$anio", "trim": "$trimestre", "mod": "$modalidad"}, "total": {"$sum": "$cantidad"}}},
-        {"$sort": {"_id.anio": 1, "_id.trim": 1}}
-    ]
-    datos = list(col.aggregate(pipeline))
-    
-    labels = sorted(list(set(f"{d['_id']['anio']}-{d['_id']['trim']}" for d in datos)))
-    data_ext = []
-    data_hom = []
-    
-    temp = {l: {"Extorsión": 0, "Homicidio": 0} for l in labels}
-    for d in datos:
-        key = f"{d['_id']['anio']}-{d['_id']['trim']}"
-        temp[key][d['_id']['mod']] = d['total']
-        
-    for l in labels:
-        data_ext.append(temp[l]["Extorsión"])
-        data_hom.append(temp[l]["Homicidio"])
-        
-    return render_template('reporte_lima.html', labels=labels, extorsion=data_ext, homicidio=data_hom)
+    return _redirigir("delitos", "extorsion")
+
+
+@app.route("/departamentos")
+@login_required
+def departamentos():
+    return _redirigir("territorio", "mapa")
+
+
+@app.route("/departamentos-percapita")
+@login_required
+def departamentos_percapita():
+    return _redirigir("territorio", "tasa")
+
+
+@app.route("/regiones")
+@login_required
+def regiones():
+    return _redirigir("territorio", "regiones")
+
+
+@app.route("/cluster-departamentos")
+@login_required
+def cluster_departamentos():
+    return _redirigir("territorio", "radar")
+
+
+# ============================================================
+#  SECCIONES DE LA HISTORIA
+# ============================================================
+@app.route("/delitos")
+@login_required
+def delitos():
+    return render_template("delitos.html", d=analitica.delitos(col))
+
+
+@app.route("/territorio")
+@login_required
+def territorio():
+    data_mapa, _ = datos_mapa()
+    clusters, stats = datos_clusters()
+    return render_template("territorio.html", t=analitica.territorio(col),
+                           data_mapa=data_mapa, clusters=clusters, stats=stats)
+
+
+@app.route("/metodologia")
+@login_required
+def metodologia():
+    try:
+        p = proyeccion_2026(col)
+    except Exception:
+        p = None
+    return render_template("metodologia.html", pan=analitica.panorama(col), p=p,
+                           t=analitica.territorio(col), registros=col.estimated_document_count())
 
 # ============================================================
 #  MÓDULOS DE INTELIGENCIA ARTIFICIAL

@@ -15,11 +15,25 @@
         Chart.defaults.plugins.tooltip.titleColor = '#f8fafc';
         Chart.defaults.plugins.tooltip.bodyColor = '#cbd5e1';
         Chart.defaults.plugins.tooltip.padding = 10;
+        // Margen para que las etiquetas no se corten si la tipografía web carga después del cálculo
+        Chart.defaults.layout.padding = { left: 6, right: 8 };
+        // Ejes verticales con etiquetas de texto: ancho extra para que la etiqueta más larga no se corte
+        Chart.defaults.scale.afterFit = function (scale) {
+            if (!scale.isHorizontal() && scale.type === 'category') scale.width += 18;
+        };
+        // Cuando termina de cargar Inter, se recalculan los gráficos ya dibujados
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function () {
+                Object.values(Chart.instances || {}).forEach(function (c) { c.resize(); c.update('none'); });
+            });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         // 2) Marca la opción activa del menú según la URL
         var ruta = window.location.pathname.replace(/\/+$/, '') || '/';
+        var alias = { '/riesgo-modalidad': '/prediccion-2026' };  // el simulador pertenece a Proyección
+        ruta = alias[ruta] || ruta;
         document.querySelectorAll('.navbar .nav-link[href], .navbar .dropdown-item[href]').forEach(function (a) {
             var destino = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
             if (destino === ruta) {

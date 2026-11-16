@@ -50,7 +50,7 @@ def test_sarima_supera_a_la_regresion_lineal(serie_sintetica):
 def test_pagina_de_proyeccion(client, serie_sintetica):
     login(client, "demo", USUARIOS["demo"][0])
     html = client.get("/prediccion-2026").get_data(as_text=True)
-    assert "Proyección de Denuncias 2026" in html
+    assert "¿Qué viene en 2026?" in html
     assert "MAPE" in html and "SARIMA" in html
 
 

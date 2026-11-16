@@ -1,9 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Riesgo por modalidad{% endblock %}
+{% import "_seccion.html" as sec %}
+{% block title %}Simulador de riesgo - SIDPOL{% endblock %}
 {% block content %}
 
-<div class="container mt-4">
-    <h1 class="mb-4 text-gray-800">Análisis de Riesgo: <span class="text-primary">{{ modalidad }}</span></h1>
+<div>
+    {{ sec.encabezado(4, "Proyección · Simulador por zona",
+        "¿Cuántos casos de " ~ modalidad|lower ~ " se esperan en una zona y trimestre?",
+        "Elige año, trimestre y departamento: un modelo Random Forest estima los casos y la IA sugiere una acción operativa.",
+        "fa-shield-virus") }}
 
     <div class="row mb-4">
         <div class="col-md-7">
@@ -125,4 +129,7 @@
         }
     });
 </script>
+
+{{ sec.navegacion(anterior={"url": url_for('prediccion_2026'), "texto": "Volver a Proyección 2026"},
+                  siguiente={"url": url_for('agente_estrategico'), "texto": "5 · IA estratégica"}) }}
 {% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_seccion.html" as sec %}
+
+{% block title %}Metodología - SIDPOL{% endblock %}
+
+{% block content %}
+{{ sec.encabezado(6, "Metodología · ¿Por qué creerle a los datos?",
+    "Cómo se construyó SIDPOL y qué límites tienen sus datos",
+    "Fuente, preparación, modelos, validación, seguridad y limitaciones: todo lo necesario para interpretar correctamente cada cifra.",
+    "fa-flask") }}
+
+<div class="row g-4 sp-method">
+    <div class="col-lg-8">
+
+        <div class="card mb-4"><div class="card-body p-4">
+            <h5><i class="fas fa-database me-2 text-primary"></i>1. Fuente de datos</h5>
+            <p>Dataset abierto de <strong>denuncias policiales del SIDPOL</strong> (Sistema de Denuncias Policiales), publicado en la Plataforma Nacional de Datos Abiertos del Perú (datosabiertos.gob.pe).</p>
+            <ul>
+                {% if pan %}
+                <li><strong>Cobertura:</strong> enero de {{ pan.anios[0] }} a {{ pan.periodo.split('–')[1] }} de {{ pan.anio_fin }}.</li>
+                <li><strong>Volumen:</strong> {{ "{:,}".format(pan.total) }} denuncias agrupadas en {{ "{:,}".format(registros) }} registros.</li>
+                {% endif %}
+                <li><strong>Cada registro</strong> es la cantidad de denuncias de una modalidad en un distrito y un mes. Campos: <code>ANIO</code>, <code>MES</code>, <code>DPTO_HECHO_NEW</code>, <code>PROV_HECHO</code>, <code>DIST_HECHO</code>, <code>UBIGEO_HECHO</code>, <code>P_MODALIDADES</code> y <code>cantidad</code>.</li>
+                <li><strong>7 modalidades:</strong> extorsión, homicidio, estafa, hurto, robo, violencia contra la mujer e integrantes del grupo familiar, y «otros».</li>
+            </ul>
+        </div></div>
+
+        <div class="card mb-4"><div class="card-body p-4">
+            <h5><i class="fas fa-broom me-2 text-primary"></i>2. Preparación de los datos</h5>
+            <ul>
+                <li><strong>Se suma el campo <code>cantidad</code></strong> en lugar de contar filas. Contar filas subestimaba la incidencia real.</li>
+                <li>Se normalizaron los nombres de los 26 ámbitos departamentales (Lima Metropolitana, Lima Provincias y Callao van por separado).</li>
+                <li>41 registros sin ubicación (y sin denuncias) se excluyen de los análisis territoriales.</li>
+                <li><strong>{{ pan.anio_fin if pan else '' }} está incompleto:</strong> por eso, al compararlo con el año anterior, se usan los mismos meses ({{ pan.periodo if pan else '' }}) de ambos años.</li>
+            </ul>
+        </div></div>
+
+        <div class="card mb-4"><div class="card-body p-4">
+            <h5><i class="fas fa-brain me-2 text-primary"></i>3. Modelos</h5>
+            <ul>
+                <li><strong>Proyección 2026 — SARIMA(0,1,1)(0,1,1)₁₂</strong> con indicadores de intervención para la pandemia (mar-2020 a feb-2021).
+                    {% if p %}Validado con los últimos 12 meses reales: <strong>error medio (MAPE) de {{ p.mape_sarima }}%</strong>, frente a {{ p.mape_lineal }}% de una regresión lineal.{% endif %}
+                    El intervalo del total anual se estima con 1,000 simulaciones.</li>
+                <li><strong>Niveles de riesgo — K-Means</strong> (3 grupos) sobre el volumen total de denuncias por departamento.</li>
+                <li><strong>Simulador táctico — Random Forest</strong> entrenado por modalidad, departamento y trimestre.</li>
+                <li><strong>Asistente y estratega — Google Gemini con RAG:</strong> antes de responder, la aplicación consulta MongoDB y entrega esos datos al modelo, que tiene instrucciones de no inventar cifras.</li>
+            </ul>
+        </div></div>
+
+        <div class="card mb-4"><div class="card-body p-4">
+            <h5><i class="fas fa-shield-halved me-2 text-primary"></i>4. Seguridad</h5>
+            <p>La aplicación sigue <strong>OWASP Top 10</strong>: cabeceras de seguridad (CSP, HSTS), protección CSRF, límite de intentos de login, cookies seguras, roles, auditoría de accesos y mitigación de <em>prompt injection</em> en la IA. El código pasa por 37 pruebas automáticas, auditoría de dependencias (<code>pip-audit</code>) y análisis estático (CodeQL) en cada cambio.</p>
+        </div></div>
+
+        <div class="card"><div class="card-body p-4">
+            <h5><i class="fas fa-triangle-exclamation me-2" style="color: var(--sp-amber);"></i>5. Limitaciones</h5>
+            <ul class="mb-0">
+                <li><strong>Denuncias no son delitos:</strong> muchos delitos no se denuncian (subregistro) y los cambios en la forma de registrar pueden mover las cifras.</li>
+                <li>La categoría «otros» agrupa delitos diversos y es la más grande, por lo que se excluye al identificar el delito principal.</li>
+                <li>La población usada para la tasa por 100 mil habitantes es una <strong>estimación aproximada</strong>; las tasas son orientativas.</li>
+                <li>Las proyecciones son exploratorias, con fines académicos, y no constituyen pronósticos oficiales.</li>
+            </ul>
+        </div></div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4" style="border-color: var(--sp-border-strong) !important;">
+            <div class="card-body p-4">
+                <div class="sp-eyebrow mb-2">Autor</div>
+                <h5 class="mb-1">Ricardo Huamaní Allcca</h5>
+                <p class="small mb-3">Ingeniero de Redes y Ciberseguridad · Maestría en Ingeniería de Sistemas e Informática, UNMSM.</p>
+                <div class="d-grid gap-2">
+                    <a class="btn btn-outline-primary btn-sm" href="https://github.com/Rihuall-star/sidpol-backend" target="_blank" rel="noopener"><i class="fab fa-github me-1"></i> Código en GitHub</a>
+                    <a class="btn btn-outline-primary btn-sm" href="https://www.linkedin.com/in/ricardo-huamani-allcca" target="_blank" rel="noopener"><i class="fab fa-linkedin me-1"></i> LinkedIn</a>
+                    <a class="btn btn-outline-primary btn-sm" href="https://orcid.org/0000-0002-1214-2917" target="_blank" rel="noopener"><i class="fab fa-orcid me-1"></i> ORCID</a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="sp-eyebrow mb-2">Stack</div>
+                <p class="small mb-0">Python · Flask · MongoDB Atlas · scikit-learn · statsmodels · Google Gemini · Chart.js · Highcharts · GitHub Actions · Render</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ sec.navegacion(
+    anterior={"url": url_for('agente_estrategico'), "texto": "5 · IA estratégica"},
+    siguiente={"url": url_for('index'), "texto": "Volver al panorama"}) }}
+{% endblock %}

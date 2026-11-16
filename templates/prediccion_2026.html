@@ -1,19 +1,17 @@
 {% extends "base.html" %}
+{% import "_seccion.html" as sec %}
 
 {% block title %}Proyección 2026 - SIDPOL{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
-    <div>
-        <h2 class="fw-bold mb-1"><i class="fas fa-chart-line text-primary me-2"></i>Proyección de Denuncias 2026</h2>
-        <p class="text-muted mb-0">Pronóstico mensual con un modelo de series de tiempo validado contra datos reales.</p>
-    </div>
-    {% if p %}<span class="badge bg-secondary">Datos reales hasta {{ p.ultimo_mes }}</span>{% endif %}
-</div>
-
 {% if not p %}
+{{ sec.encabezado(4, "Proyección · ¿Qué viene en 2026?", "Proyección de denuncias 2026", None, "fa-chart-line") }}
 <div class="alert alert-warning">No hay datos suficientes para generar la proyección.</div>
 {% else %}
+{{ sec.encabezado(4, "Proyección · ¿Qué viene en 2026?",
+    "Si la tendencia sigue, 2026 cerraría con unas " ~ ((p.total_2026 / 1000) | round | int) ~ " mil denuncias",
+    "Pronóstico mensual con un modelo de series de tiempo (SARIMA) validado contra datos reales hasta " ~ p.ultimo_mes ~ ".",
+    "fa-chart-line") }}
 
 <!-- KPIs -->
 <div class="row g-3 mb-4">
@@ -58,19 +56,36 @@
     </div>
 </div>
 
-<!-- Metodología -->
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white fw-semibold"><i class="fas fa-flask me-1"></i> Metodología</div>
-    <div class="card-body small">
-        <ul class="mb-2">
-            <li><strong>Modelo:</strong> {{ p.modelo }} ("airline model" de Box-Jenkins), que captura tendencia y estacionalidad anual.</li>
-            <li><strong>Pandemia:</strong> los meses de marzo de 2020 a febrero de 2021 se modelan con indicadores de intervención, para que la caída atípica no distorsione la tendencia.</li>
-            <li><strong>Validación:</strong> el modelo se entrenó sin los últimos 12 meses y se comparó su pronóstico con lo realmente ocurrido. Error medio absoluto porcentual (MAPE) = <strong>{{ p.mape_sarima }}%</strong>, frente a <strong>{{ p.mape_lineal }}%</strong> de la regresión lineal usada antes.</li>
-            <li><strong>Incertidumbre:</strong> la banda sombreada es el intervalo de confianza mensual (95%). El intervalo del total anual se estima con 1,000 simulaciones del modelo.</li>
-        </ul>
-        <p class="text-muted mb-0">Proyección exploratoria con fines académicos; no es un pronóstico oficial.</p>
+<div class="row g-4 mb-2">
+    <div class="col-lg-7">
+        {{ sec.que_significa([
+            "El modelo espera que la baja de denuncias continúe en 2026: <strong>" ~ "{:,}".format(p.total_2026) ~ "</strong> (rango probable: " ~ "{:,}".format(p.total_2026_min) ~ " – " ~ "{:,}".format(p.total_2026_max) ~ ").",
+            "Es <strong>3 veces más preciso</strong> que la regresión lineal usada antes (error de " ~ p.mape_sarima ~ "% frente a " ~ p.mape_lineal ~ "%), que proyectaba un aumento porque no detectaba el cambio de tendencia de 2024.",
+            "La proyección es del total: la <strong>extorsión</strong> va en sentido contrario y debe vigilarse aparte (ver <a href='" ~ url_for('delitos') ~ "'>Delitos</a>).",
+        ]) }}
+    </div>
+    <div class="col-lg-5">
+        <a class="sp-tile h-100" href="/riesgo-modalidad">
+            <span class="sp-kpi-icon" style="--kpi: var(--sp-green);"><i class="fas fa-shield-virus"></i></span>
+            <span><strong>Simulador de riesgo por zona</strong>
+                <small>Elige modalidad, departamento y trimestre para estimar casos con un modelo Random Forest y recibir una recomendación de la IA.</small></span>
+        </a>
     </div>
 </div>
+
+{% call sec.plegable("Cómo se calculó", "fa-flask") %}
+<ul class="small mb-2">
+    <li><strong>Modelo:</strong> {{ p.modelo }} ("airline model" de Box-Jenkins), que captura tendencia y estacionalidad anual.</li>
+    <li><strong>Pandemia:</strong> los meses de marzo de 2020 a febrero de 2021 se modelan con indicadores de intervención, para que la caída atípica no distorsione la tendencia.</li>
+    <li><strong>Validación:</strong> el modelo se entrenó sin los últimos 12 meses y se comparó su pronóstico con lo realmente ocurrido. Error medio absoluto porcentual (MAPE) = <strong>{{ p.mape_sarima }}%</strong>, frente a <strong>{{ p.mape_lineal }}%</strong> de la regresión lineal.</li>
+    <li><strong>Incertidumbre:</strong> la banda sombreada es el intervalo de confianza mensual (95%). El intervalo del total anual se estima con 1,000 simulaciones del modelo.</li>
+</ul>
+<p class="small text-muted mb-0">Proyección exploratoria con fines académicos; no es un pronóstico oficial. Más detalle en <a href="{{ url_for('metodologia') }}">Metodología</a>.</p>
+{% endcall %}
+
+{{ sec.navegacion(
+    anterior={"url": url_for('territorio'), "texto": "3 · Territorio"},
+    siguiente={"url": url_for('agente_estrategico'), "texto": "5 · ¿Qué se puede hacer?"}) }}
 
 <script>
     const p = {{ p | tojson }};
@@ -84,8 +99,8 @@
                 { label: 'IC 95% (mín.)', data: p.graf_min, borderWidth: 0, pointRadius: 0, fill: false },
                 { label: 'Pronóstico SARIMA', data: p.graf_pred, borderColor: '#0ea5e9',
                   borderDash: [6, 4], pointRadius: 2, tension: 0.25, fill: false },
-                { label: 'Denuncias reales', data: p.graf_real, borderColor: '#1e293b',
-                  backgroundColor: '#1e293b', pointRadius: 2, tension: 0.25, fill: false }
+                { label: 'Denuncias reales', data: p.graf_real, borderColor: '#e2e8f0',
+                  backgroundColor: '#e2e8f0', pointRadius: 2, tension: 0.25, fill: false }
             ]
         },
         options: {

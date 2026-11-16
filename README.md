@@ -19,6 +19,19 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 
 ---
 
+## 🧭 Cómo está organizada
+
+La aplicación cuenta una historia en 6 secciones. Cada una responde una pregunta, con un titular que es el hallazgo, un gráfico principal, un bloque «Qué significa» y un enlace a la siguiente:
+
+| # | Sección | Pregunta |
+|---|---|---|
+| 1 | Panorama | ¿Qué está pasando? |
+| 2 | Delitos | ¿Qué delitos crecen y cuáles bajan? |
+| 3 | Territorio | ¿Dónde ocurre? (distritos, mapa, tasa por habitante, niveles de riesgo) |
+| 4 | Proyección | ¿Qué viene en 2026? (SARIMA + simulador) |
+| 5 | IA estratégica | ¿Qué se puede hacer? |
+| 6 | Metodología | ¿Por qué creerle a los datos? |
+
 ## ✨ Funcionalidades
 
 | Módulo | Qué hace |
@@ -36,6 +49,9 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 ## 📊 Hallazgos principales
 - **Cambio de tendencia:** las denuncias alcanzaron su máximo en 2023 (1,042,703) y vienen bajando desde mediados de 2024. El modelo SARIMA proyecta **~654 mil denuncias en 2026** (IC 95%: 433k – 884k); la regresión lineal anterior proyectaba más de 1 millón porque ignoraba ese cambio.
 - **Extorsión:** pasó de 4,734 denuncias en 2021 a 22,356 en 2024 (**+372%**) y sigue creciendo en 2025 (+27% ene-oct), a contracorriente de la caída general.
+- **Concentración de la extorsión:** el 50% de los casos de 2024 ocurrió en solo **23 de 606 distritos** (Trujillo, San Juan de Lurigancho, Cercado de Lima, Sullana…), y esos focos crecieron entre +300% y +800% desde 2021.
+- **Estafa:** se cuadruplicó entre 2018 y 2024 (+317%).
+- **Violencia contra la mujer:** es el delito más denunciado en **22 de 26 departamentos** (sin contar «otros»).
 - **Lima Metropolitana** queda sola en el cluster de riesgo crítico (más de 2.3 millones de denuncias); Arequipa, Lambayeque, La Libertad y Piura encabezan el nivel medio.
 - **La Costa concentra el 75%** de las denuncias del país (5.0 de 6.7 millones).
 - Corregir el conteo (suma de `cantidad` frente a conteo de filas) mostró una incidencia **mayor a la que se obtiene con un conteo simple**.
@@ -62,6 +78,7 @@ CSV SIDPOL ──► ETL (Pandas) ──► MongoDB ──► Flask (lógica + M
 
 ```
 app.py               # Rutas Flask, autenticación, roles y controles de seguridad
+analitica.py         # Cálculos de Panorama, Delitos y Territorio (hallazgos generados desde los datos)
 ml_utils.py          # Conexión a MongoDB, series mensuales, proyección SARIMA y modelo de riesgo
 ml_cluster.py        # Clustering K-Means de departamentos
 ml_llm.py            # Cliente de Gemini (google-genai), agentes y límite de IA para la cuenta demo
@@ -88,7 +105,7 @@ La aplicación aplica controles alineados con **OWASP Top 10 (2021)**:
 | **LLM01** Prompt injection (OWASP Top 10 para LLM) | Reglas del asistente enviadas como *system instruction*, separadas de la pregunta del usuario; prompt limitado a 500 caracteres; respuestas basadas solo en los datos entregados. |
 | **A09** Fallas de registro y monitoreo | Auditoría de inicios de sesión **y de intentos fallidos**, con la IP real del visitante (`ProxyFix` detrás del proxy de Render). |
 
-**Pruebas automatizadas:** 16 pruebas con `pytest` (CSRF, rate limiting, roles, cabeceras, sesión, límite de IA, escape XSS y prompt injection) se ejecutan en **GitHub Actions** en cada push, junto con `pip-audit`.
+**Pruebas automatizadas:** 37 pruebas con `pytest` (seguridad, modelos, secciones y redirecciones) se ejecutan en **GitHub Actions** en cada push, junto con `pip-audit`.
 
 **Pendiente:** CSP basada en *nonces* para eliminar `'unsafe-inline'`.
 

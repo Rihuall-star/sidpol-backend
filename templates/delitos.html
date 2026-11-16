@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% import "_seccion.html" as sec %}
+
+{% block title %}Delitos - SIDPOL{% endblock %}
+
+{% block content %}
+{% if not d or not d.extorsion or not d.homicidio or not d.estafa %}
+<div class="alert alert-warning">No hay datos suficientes para mostrar esta sección.</div>
+{% else %}
+{% set ext, hom, est = d.extorsion, d.homicidio, d.estafa %}
+
+{{ sec.encabezado(2, "Delitos · ¿Qué delitos crecen y cuáles bajan?",
+    "La extorsión rompió su récord en " ~ d.anio_fin ~ ", mientras robo y hurto caen",
+    "Comparamos las 7 modalidades que registra el SIDPOL: cómo cambió cada una desde 2018 y qué está pasando en " ~ d.anio_fin ~ ".",
+    "fa-scale-unbalanced") }}
+
+<div class="row g-4 mb-4">
+    <!-- Gráfico principal: variación por modalidad -->
+    <div class="col-lg-8 sp-fade d2">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="fas fa-chart-bar me-2 text-primary"></i>Variación de denuncias por modalidad</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary active" data-periodo="parcial">{{ d.anio_fin }} vs {{ d.anio_fin - 1 }}</button>
+                    <button class="btn btn-outline-primary" data-periodo="2021">2021 → {{ d.ultimo_completo }}</button>
+                    <button class="btn btn-outline-primary" data-periodo="2018">2018 → {{ d.ultimo_completo }}</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="position: relative; height: 330px;"><canvas id="graficoVariacion"></canvas></div>
+                <div class="small text-muted mt-2" id="notaPeriodo"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        {{ sec.que_significa([
+            "La <strong>extorsión</strong> lleva " ~ "{:,}".format(ext.parcial_actual) ~ " denuncias en " ~ d.periodo ~ " de " ~ d.anio_fin ~ ": ya supera cualquier año completo anterior. Desde 2021 creció <strong>+" ~ ext.var_2021 ~ "%</strong>.",
+            "La <strong>estafa</strong> se cuadruplicó desde 2018 (<strong>+" ~ est.var_2018 ~ "%</strong>), en línea con el aumento del fraude digital.",
+            "La baja general de " ~ d.anio_fin ~ " se explica por <strong>robo (" ~ "%+d"|format((d.filas|selectattr('modalidad','equalto','Robo')|first).var_parcial) ~ "%)</strong> y <strong>hurto (" ~ "%+d"|format((d.filas|selectattr('modalidad','equalto','Hurto')|first).var_parcial) ~ "%)</strong>.",
+            "El <strong>homicidio</strong> tiene menos casos, pero sigue subiendo: +" ~ hom.var_2021 ~ "% desde 2021 y " ~ "%+d"|format(hom.var_parcial) ~ "% en " ~ d.anio_fin ~ ".",
+        ]) }}
+    </div>
+</div>
+
+<!-- Extorsión vs homicidio -->
+<section id="extorsion" class="mt-5">
+    <h2 class="h4 mb-1"><i class="fas fa-crosshairs me-2" style="color: var(--sp-red);"></i>Extorsión y homicidio: dos curvas que suben</h2>
+    <p class="sp-sub mb-3">Denuncias por trimestre a nivel nacional. La extorsión (eje izquierdo) despega en 2022; el homicidio (eje derecho) crece de forma más gradual.</p>
+    <div class="row g-4">
+        <div class="col-lg-8 sp-fade d3">
+            <div class="card h-100"><div class="card-body">
+                <div style="position: relative; height: 320px;"><canvas id="graficoExtHom"></canvas></div>
+            </div></div>
+        </div>
+        <div class="col-lg-4">
+            {{ sec.que_significa([
+                "La extorsión pasó de unos " ~ "{:,}".format((d.trim_extorsion[:4]|sum)//4) ~ " casos por trimestre en 2018 a más de " ~ "{:,}".format(d.trim_extorsion[-4:]|max) ~ " en los trimestres recientes.",
+                "Ambos delitos se concentran en Lima y la costa norte (ver <a href='" ~ url_for('territorio') ~ "'>Territorio</a>).",
+                "Por su impacto, son los delitos que justifican priorizar recursos aunque el total de denuncias baje.",
+            ], "Por qué importa") }}
+        </div>
+    </div>
+</section>
+
+{% call sec.plegable("Ver tabla: denuncias por modalidad y año") %}
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+        <thead><tr><th>Modalidad</th>{% for a in d.anios %}<th class="text-end">{{ a }}{% if a == d.anio_fin %}*{% endif %}</th>{% endfor %}<th class="text-end">{{ d.anio_fin }} vs {{ d.anio_fin - 1 }}</th></tr></thead>
+        <tbody>
+        {% for f in d.filas %}
+        <tr>
+            <td class="fw-semibold">{{ f.modalidad }}</td>
+            {% for v in f.por_anio %}<td class="text-end">{{ "{:,}".format(v) }}</td>{% endfor %}
+            <td class="text-end">
+                {% if f.var_parcial is not none %}<span class="sp-chip {{ 'up' if f.var_parcial > 0 else ('down' if f.var_parcial < 0 else 'flat') }}">{{ "%+d"|format(f.var_parcial) }}%</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="small text-muted mt-2">* {{ d.anio_fin }} incluye datos de {{ d.periodo }}. La última columna compara {{ d.periodo }} de ambos años.</div>
+{% endcall %}
+
+{{ sec.navegacion(
+    anterior={"url": url_for('index'), "texto": "1 · Panorama"},
+    siguiente={"url": url_for('territorio'), "texto": "3 · ¿Dónde ocurre?"}) }}
+
+<script>
+    (function () {
+        const filas = {{ d.filas | tojson }};
+        const periodos = {
+            parcial: { campo: 'var_parcial', nota: 'Compara {{ d.periodo }} de {{ d.anio_fin }} con el mismo periodo de {{ d.anio_fin - 1 }}.' },
+            '2021':  { campo: 'var_2021', nota: 'Compara el año completo {{ d.ultimo_completo }} con 2021 (después de la cuarentena).' },
+            '2018':  { campo: 'var_2018', nota: 'Compara el año completo {{ d.ultimo_completo }} con 2018, el primer año del dataset.' }
+        };
+        const nombreCorto = m => m.startsWith('Violencia') ? ['Violencia contra', 'la mujer'] : m;
+        let chart;
+        function dibujar(clave) {
+            const p = periodos[clave];
+            const orden = [...filas].sort((a, b) => (b[p.campo] ?? 0) - (a[p.campo] ?? 0));
+            const datos = orden.map(f => f[p.campo] ?? 0);
+            const colores = datos.map(v => v > 0 ? 'rgba(244, 63, 94, 0.85)' : 'rgba(16, 185, 129, 0.85)');
+            document.getElementById('notaPeriodo').textContent = p.nota + ' Rojo = sube, verde = baja.';
+            if (chart) { chart.data.labels = orden.map(f => nombreCorto(f.modalidad)); chart.data.datasets[0].data = datos; chart.data.datasets[0].backgroundColor = colores; chart.update(); return; }
+            chart = new Chart(document.getElementById('graficoVariacion'), {
+                type: 'bar',
+                data: { labels: orden.map(f => nombreCorto(f.modalidad)), datasets: [{ data: datos, backgroundColor: colores, borderRadius: 6 }] },
+                options: {
+                    indexAxis: 'y', maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + (c.raw > 0 ? '+' : '') + c.raw + '%' } } },
+                    scales: { x: { ticks: { callback: v => (v > 0 ? '+' : '') + v + '%' } }, y: { grid: { display: false } } }
+                }
+            });
+        }
+        document.querySelectorAll('[data-periodo]').forEach(b => b.addEventListener('click', function () {
+            document.querySelectorAll('[data-periodo]').forEach(x => x.classList.remove('active'));
+            this.classList.add('active'); dibujar(this.dataset.periodo);
+        }));
+        dibujar('parcial');
+
+        new Chart(document.getElementById('graficoExtHom'), {
+            type: 'line',
+            data: {
+                labels: {{ d.trim_etiquetas | tojson }},
+                datasets: [
+                    { label: 'Extorsión', data: {{ d.trim_extorsion | tojson }}, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.12)', fill: true, tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+                    { label: 'Homicidio', data: {{ d.trim_homicidio | tojson }}, borderColor: '#f59e0b', borderDash: [6, 4], tension: 0.3, pointRadius: 2, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Extorsión' } },
+                    y1: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: 'Homicidio' } }
+                }
+            }
+        });
+    })();
+</script>
+{% endif %}
+{% endblock %}
