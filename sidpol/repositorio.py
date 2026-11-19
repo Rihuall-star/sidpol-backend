@@ -57,13 +57,17 @@ class Repositorio:
             self._version = (valor, time.monotonic())
         return valor
 
-    def registrar_version(self, version, registros):
+    def registrar_version(self, version, registros, **detalle):
+        """`detalle`: fecha de corte, archivos de origen, denuncias por año… (lo que entregue el ETL)."""
         self.db["meta"].replace_one(
             {"_id": "dataset"},
-            {"_id": "dataset", "version": version, "registros": registros, "cargado": datetime.now()},
+            {"_id": "dataset", "version": version, "registros": registros, "cargado": datetime.now(), **detalle},
             upsert=True,
         )
         self.olvidar_memoria()
+
+    def info_dataset(self):
+        return self.db["meta"].find_one({"_id": "dataset"}, {"_id": 0}) or {}
 
     def olvidar_memoria(self):
         self._version = (None, 0.0)

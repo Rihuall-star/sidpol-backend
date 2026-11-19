@@ -22,10 +22,10 @@ log = logging.getLogger(__name__)
 # Sube la versión de un cálculo cuando cambie su código o la forma de su resultado.
 CALCULOS = {
     "panorama": (1, lambda r: analitica.panorama(r.agregada())),
-    "delitos": (1, lambda r: analitica.delitos(r.agregada())),
+    "delitos": (2, lambda r: analitica.delitos(r.agregada())),
     "territorio": (1, lambda r: analitica.territorio(r.agregada(), r.denuncias)),
     "modalidades": (1, lambda r: analitica.evolucion_modalidades(r.agregada())),
-    "proyeccion": (1, lambda r: modelos.proyeccion_2026(r.agregada())),
+    "proyeccion": (2, lambda r: modelos.proyeccion(r.agregada())),
     "mapa": (1, lambda r: modelos.datos_mapa(r.agregada())),
     "clusters": (1, lambda r: modelos.clusters_departamentos(r.agregada())),
     "simulador": (1, lambda r: modelos.datos_simulador(r.agregada())),

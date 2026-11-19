@@ -40,7 +40,7 @@ MENSAJES_DE_FALLA = (MENSAJE_LIMITE, MENSAJE_CUOTA_GOOGLE, MENSAJE_ERROR)
 
 # Reglas del asistente, separadas del mensaje del usuario (mitigación de prompt injection, OWASP LLM01)
 INSTRUCCIONES_CHAT = (
-    "Eres el Asistente Oficial SIDPOL, un analista de datos de denuncias policiales del Perú (2018-2025). "
+    "Eres el Asistente Oficial SIDPOL, un analista de datos de denuncias policiales del Perú (desde 2018). "
     "Responde en español, de forma breve y profesional, SOLO con base en el CONTEXTO y en los resultados "
     "de las herramientas de datos. Si necesitas una cifra que no está en el contexto, usa una herramienta. "
     "Si el dato no existe, dilo claramente en lugar de inventarlo. "
@@ -213,8 +213,8 @@ def responder_chat(repo, mensaje, contexto, usuario=None, rol=None):
 # ---------------------------------------------------------------------
 # Agentes de texto
 # ---------------------------------------------------------------------
-def consultar_estratega(total, contexto, riesgo):
-    prompt = f"PROYECCIÓN 2026: {total:,} denuncias.\nDATOS Y TENDENCIA:\n{contexto}\nFOCO DE RIESGO: {riesgo}."
+def consultar_estratega(total, anio, contexto, riesgo):
+    prompt = f"PROYECCIÓN {anio}: {total:,} denuncias.\nDATOS Y TENDENCIA:\n{contexto}\nFOCO DE RIESGO: {riesgo}."
     return generar_respuesta(prompt, instrucciones=INSTRUCCIONES_ESTRATEGA)
 
 

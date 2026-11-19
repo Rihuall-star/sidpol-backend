@@ -58,6 +58,20 @@ def test_precalculo_completo(repo, datos_completos):
     assert repo.db["meta"].find_one({"_id": "dataset"})["version"] == resumen["version"]
 
 
+def test_etl_lee_varios_archivos_con_columnas_de_la_version_2026(tmp_path):
+    import etl_carga_mongo as etl
+    for anio in (2025, 2026):
+        (tmp_path / f"DATASET_{anio}.csv").write_text(
+            "ANIO_REGISTRO,MES_REGISTRO,DPTO_HECHO_NEW,PROV_HECHO,DIST_HECHO,UBIGEO_HECHO,P_MODALIDADES,cantidad\n"
+            f"{anio},1,CUSCO,CUSCO,CUSCO,80101,Secuestro,2\n{anio},10,PUNO,PUNO,PUNO,210101,Robo,3\n", encoding="utf-8")
+    rutas = etl.expandir_rutas([str(tmp_path)])
+    df, descartadas = etl.validar(etl.leer_varios(rutas))
+    info = etl.resumen(df)
+    assert len(rutas) == 2 and descartadas == 0
+    assert info["corte"] == "2026-10" and info["por_anio"] == {"2025": 5, "2026": 5}
+    assert "Secuestro" in info["modalidades"]
+
+
 def test_etl_valida_y_descarta_filas_invalidas(tmp_path):
     import etl_carga_mongo as etl
     csv = tmp_path / "datos.csv"
@@ -72,3 +86,12 @@ def test_etl_valida_y_descarta_filas_invalidas(tmp_path):
     assert len(df) == 1 and descartadas == 3
     fila = df.iloc[0]
     assert fila["trimestre"] == "T1" and fila["anio_trimestre"] == "2024-T1" and fila["UBIGEO_HECHO"] == "080101"
+
+
+def test_precalculo_guarda_los_datos_de_la_version(repo, datos_completos):
+    import etl_carga_mongo as etl
+    import pandas as pd
+    info = etl.resumen(pd.DataFrame(list(datos_completos.find({}, {"_id": 0}))))
+    precalculo.ejecutar(repo, nueva_version=True, datos_version={**info, "archivos": ["a.csv"]})
+    meta = repo.info_dataset()
+    assert meta["corte"] == "2025-10" and meta["archivos"] == ["a.csv"] and meta["registros"] > 0

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 def contexto_base(r):
     """Resumen corto que siempre acompaña a la pregunta. Lo específico, el modelo lo pide con herramientas."""
     pan = resultados.obtener(r, "panorama")
-    partes = ["Dataset SIDPOL de denuncias policiales del Perú, 2018-2025."]
+    partes = ["Dataset SIDPOL de denuncias policiales del Perú desde 2018."]
     if pan:
         anual = ", ".join(f"{a}: {v:,}" for a, v in zip(pan["anios"], pan["serie_anual"]))
         partes.append(f"Denuncias por año (nacional): {anual}. {pan['anio_fin']} tiene datos solo hasta "
@@ -31,19 +31,20 @@ def agente_estrategico():
     r = repo()
     p = resultados.obtener(r, "proyeccion")
     if not p:
-        return render_template("agente_estrategico.html", total="No disponible",
+        return render_template("agente_estrategico.html", total="No disponible", anio="",
                                analisis="No se pudo calcular la proyección en este momento.")
 
     # El análisis se genera una vez al día y se guarda: así las visitas no gastan cuota de Gemini
-    clave = f"estratega-{datetime.now():%Y-%m-%d}-{r.version_dataset()}-{p['total_2026']}"
+    clave = f"estratega-{datetime.now():%Y-%m-%d}-{r.version_dataset()}-{p['total_objetivo']}"
     analisis = r.leer_cache_ia(clave)
     if not analisis:
         contexto = (modelos.texto_proyeccion(p) + "\n" +
                     analitica.texto_evolucion(resultados.obtener(r, "modalidades") or [], top=7))
-        analisis = ia.consultar_estratega(p["total_2026"], contexto, "Extorsión y delitos patrimoniales")
+        analisis = ia.consultar_estratega(p["total_objetivo"], p["anio_objetivo"], contexto, "Extorsión y delitos patrimoniales")
         if analisis not in ia.MENSAJES_DE_FALLA:
             r.guardar_cache_ia(clave, analisis, tipo="estratega")
-    return render_template("agente_estrategico.html", total="{:,}".format(p["total_2026"]), analisis=analisis)
+    return render_template("agente_estrategico.html", total="{:,}".format(p["total_objetivo"]), anio=p["anio_objetivo"],
+                           analisis=analisis)
 
 
 @bp.route("/chat-ia", methods=["POST"])

@@ -80,11 +80,12 @@ def construir_gold(repo):
     return len(docs)
 
 
-def ejecutar(repo, nueva_version=False):
+def ejecutar(repo, nueva_version=False, datos_version=None):
     inicio = time.perf_counter()
     crear_indices(repo)
     if nueva_version:
-        repo.registrar_version(datetime.now().strftime("%Y%m%d%H%M%S"), repo.denuncias.estimated_document_count())
+        repo.registrar_version(datetime.now().strftime("%Y%m%d%H%M%S"), repo.denuncias.estimated_document_count(),
+                               **(datos_version or {}))
     n_gold = construir_gold(repo)
     tiempos = resultados.precalcular_todo(repo)
     resumen = {"gold_documentos": n_gold, "tiempos": tiempos, "version": repo.version_dataset(ttl=0),

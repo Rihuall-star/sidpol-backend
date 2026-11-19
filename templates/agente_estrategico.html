@@ -6,14 +6,14 @@
 {% block content %}
 {{ sec.encabezado(5, "IA estratégica · ¿Qué se puede hacer?",
     "De los datos a las decisiones: un análisis estratégico generado por IA",
-    "Gemini recibe la proyección 2026 y la evolución de cada delito, y propone un diagnóstico y acciones. Solo usa los datos de SIDPOL; no inventa cifras.",
+    "Gemini recibe la proyección y la evolución de cada delito, y propone un diagnóstico y acciones. Solo usa los datos de SIDPOL; no inventa cifras.",
     "fa-chess-knight") }}
 
 <div class="row g-4">
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
             <div class="card-body">
-                <div class="text-uppercase small text-primary fw-semibold">Impacto esperado 2026</div>
+                <div class="text-uppercase small text-primary fw-semibold">Impacto esperado {{ anio }}</div>
                 <div class="display-6 fw-bold">{{ total }}</div>
                 <div class="small text-muted">Denuncias proyectadas (modelo SARIMA)</div>
                 <a href="{{ url_for('secciones.prediccion_2026') }}" class="btn btn-sm btn-outline-primary mt-3">
@@ -48,6 +48,6 @@
 </div>
 
 {{ sec.navegacion(
-    anterior={"url": url_for('secciones.prediccion_2026'), "texto": "4 · Proyección 2026"},
+    anterior={"url": url_for('secciones.prediccion_2026'), "texto": "4 · Proyección"},
     siguiente={"url": url_for('secciones.metodologia'), "texto": "6 · ¿Por qué creerle a los datos?"}) }}
 {% endblock %}

@@ -73,7 +73,7 @@ def _modelo_simulador(datos):
 @login_required
 def riesgo_modalidad():
     datos = _r("simulador")
-    entrada = {"anio": 2025, "trimestre": "T1", "departamento": "LIMA METROPOLITANA"}
+    entrada = {"anio": max((datos or {}).get("anios") or [2025]), "trimestre": "T1", "departamento": "LIMA METROPOLITANA"}
     resultado, analisis = 0, None
 
     if request.method == "POST" and datos:

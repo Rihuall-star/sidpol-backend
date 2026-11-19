@@ -42,7 +42,7 @@
             <div class="tab-pane fade" id="mapa">
                 <div class="card"><div class="card-body p-2">
                     <div id="container-mapa" style="height: 560px;"></div>
-                    <p class="small text-muted px-2 mb-1">Total de denuncias 2018–2025. Escala logarítmica de azul (menos) a rojo (más). Usa la rueda del mouse para acercar.</p>
+                    <p class="small text-muted px-2 mb-1">Total de denuncias 2018–{{ t.anio_fin }}. Escala logarítmica de azul (menos) a rojo (más). Usa la rueda del mouse para acercar.</p>
                 </div></div>
             </div>
 
@@ -120,7 +120,7 @@
 {% call sec.plegable("Ver tabla: departamentos") %}
 <div class="table-responsive">
     <table class="table table-sm table-hover align-middle mb-0">
-        <thead><tr><th>Departamento</th><th>Región</th><th class="text-end">Denuncias 2018–2025</th><th class="text-end">% del total</th><th class="text-end">{{ t.ultimo_completo }}</th><th class="text-end">Por 100 mil hab.</th></tr></thead>
+        <thead><tr><th>Departamento</th><th>Región</th><th class="text-end">Denuncias 2018–{{ t.anio_fin }}</th><th class="text-end">% del total</th><th class="text-end">{{ t.ultimo_completo }}</th><th class="text-end">Por 100 mil hab.</th></tr></thead>
         <tbody>
         {% for d in t.departamentos %}
         <tr><td class="fw-semibold">{{ d.nombre }}</td><td>{{ d.region }}</td><td class="text-end">{{ "{:,}".format(d.total) }}</td><td class="text-end">{{ d.pct }}%</td><td class="text-end">{{ "{:,}".format(d.anual) }}</td><td class="text-end">{{ "{:,}".format(d.tasa) if d.tasa else '—' }}</td></tr>
@@ -133,7 +133,7 @@
 
 {{ sec.navegacion(
     anterior={"url": url_for('secciones.delitos'), "texto": "2 · Delitos"},
-    siguiente={"url": url_for('secciones.prediccion_2026'), "texto": "4 · ¿Qué viene en 2026?"}) }}
+    siguiente={"url": url_for('secciones.prediccion_2026'), "texto": "4 · ¿Qué viene después?"}) }}
 
 <script nonce="{{ csp_nonce() }}">
     (function () {

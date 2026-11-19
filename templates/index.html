@@ -10,7 +10,8 @@
 {% set ext = dl.extorsion %}
 
 {{ sec.encabezado(1, "Panorama · ¿Qué está pasando?",
-    "Las denuncias bajan desde 2024, pero la extorsión rompe récords",
+    ("Las denuncias bajan desde " ~ pan.pico ~ ", pero la extorsión rompe récords") if ext.record else
+    ("Las denuncias bajan desde " ~ pan.pico ~ " y la extorsión cae " ~ "%+d"|format(ext.var_parcial) ~ "% en " ~ pan.anio_fin ~ " tras su récord de " ~ dl.extorsion_pico_anio),
     "{:,}".format(pan.total) ~ " denuncias policiales registradas en el Perú entre " ~ pan.anios[0] ~ " y " ~ pan.anios[-1]
     ~ " (datos abiertos SIDPOL). Así cambió el panorama y hacia dónde va.", "fa-earth-americas") }}
 
@@ -43,9 +44,9 @@
     <div class="col-sm-6 col-xl-3 sp-fade d4">
         <div class="sp-kpi violet">
             <div class="sp-kpi-icon"><i class="fas fa-chart-line"></i></div>
-            <div class="sp-kpi-label">Proyección 2026</div>
+            <div class="sp-kpi-label">Proyección {{ proyeccion.anio_objetivo if proyeccion else "" }}</div>
             {% if proyeccion %}
-            <div class="sp-kpi-value" data-count="{{ proyeccion.total_2026 }}" data-format="compacto">{{ "{:,}".format(proyeccion.total_2026) }}</div>
+            <div class="sp-kpi-value" data-count="{{ proyeccion.total_objetivo }}" data-format="compacto">{{ "{:,}".format(proyeccion.total_objetivo) }}</div>
             <div class="sp-kpi-foot">SARIMA · error de validación {{ proyeccion.mape_sarima }}%</div>
             {% else %}<div class="sp-kpi-value">—</div>{% endif %}
         </div>
@@ -76,9 +77,10 @@
         {% set caen = dl.caen[:2] %}
         {{ sec.que_significa([
             "En <strong>2020</strong> las denuncias cayeron <strong>" ~ pan.covid_caida ~ "%</strong> por la cuarentena y luego subieron hasta el máximo de <strong>" ~ pan.pico ~ "</strong>.",
-            "Desde 2024 la tendencia es a la baja: en " ~ pan.periodo ~ " de " ~ pan.anio_fin ~ " hubo <strong>" ~ pan.var_parcial|abs ~ "% menos</strong> denuncias, sobre todo por "
-                ~ (caen | map(attribute='modalidad') | map('lower') | join(' y ')) ~ ".",
-            "Pero no todos los delitos bajan: la <strong>extorsión</strong> ya registra en " ~ pan.anio_fin ~ " más casos que en cualquier año completo anterior.",
+            "En " ~ pan.periodo ~ " de " ~ pan.anio_fin ~ " hubo <strong>" ~ pan.var_parcial|abs ~ "% " ~ ("menos" if pan.var_parcial < 0 else "más") ~ "</strong> denuncias que en el mismo periodo de " ~ (pan.anio_fin - 1)
+                ~ ((", sobre todo por " ~ (caen | map(attribute='modalidad') | map('lower') | join(' y '))) if pan.var_parcial < 0 and caen else "") ~ ".",
+            ("La <strong>extorsión</strong> ya registra en " ~ pan.anio_fin ~ " más casos que en cualquier año completo anterior." if ext.record else
+             "La <strong>extorsión</strong> alcanzó su récord en " ~ dl.extorsion_pico_anio ~ " (" ~ "{:,}".format(dl.extorsion_pico_total) ~ " denuncias) y en " ~ pan.anio_fin ~ " varía " ~ "%+d"|format(ext.var_parcial) ~ "%."),
         ]) }}
     </div>
 </div>
@@ -102,8 +104,8 @@
             url_for('secciones.territorio') ~ "#delito-principal", "Ver por departamento") }}
     </div>
     <div class="col-md-6 col-xl-3 sp-fade d4">
-        {{ sec.hallazgo("violet", "fa-chart-line", "{:,}".format(proyeccion.total_2026) if proyeccion else "—",
-            "Denuncias proyectadas para 2026: la tendencia a la baja continuaría, salvo en extorsión.",
+        {{ sec.hallazgo("violet", "fa-chart-line", "{:,}".format(proyeccion.total_objetivo) if proyeccion else "—",
+            ("Denuncias proyectadas para " ~ proyeccion.anio_objetivo ~ " con SARIMA (error de validación " ~ proyeccion.mape_sarima ~ "%).") if proyeccion else "Proyección no disponible.",
             url_for('secciones.prediccion_2026'), "Ver proyección") }}
     </div>
 </div>

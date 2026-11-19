@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% import "_seccion.html" as sec %}
 
-{% block title %}Proyección 2026 - SIDPOL{% endblock %}
+{% block title %}Proyección - SIDPOL{% endblock %}
 
 {% block content %}
 {% if not p %}
-{{ sec.encabezado(4, "Proyección · ¿Qué viene en 2026?", "Proyección de denuncias 2026", None, "fa-chart-line") }}
+{{ sec.encabezado(4, "Proyección · ¿Qué viene después?", "Proyección de denuncias", None, "fa-chart-line") }}
 <div class="alert alert-warning">No hay datos suficientes para generar la proyección.</div>
 {% else %}
-{{ sec.encabezado(4, "Proyección · ¿Qué viene en 2026?",
-    "Si la tendencia sigue, 2026 cerraría con unas " ~ ((p.total_2026 / 1000) | round | int) ~ " mil denuncias",
+{% set var_obj = ((p.total_objetivo - p.cierre_actual) / p.cierre_actual * 100) | round(1) %}
+{{ sec.encabezado(4, "Proyección · ¿Qué viene en " ~ p.anio_objetivo ~ "?",
+    "Si la tendencia sigue, " ~ p.anio_objetivo ~ " cerraría con unas " ~ ((p.total_objetivo / 1000) | round | int) ~ " mil denuncias",
     "Pronóstico mensual con un modelo de series de tiempo (SARIMA) validado contra datos reales hasta " ~ p.ultimo_mes ~ ".",
     "fa-chart-line") }}
 
@@ -18,9 +19,9 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
             <div class="card-body">
-                <div class="text-uppercase small text-primary fw-semibold">Total proyectado 2026</div>
-                <div class="display-6 fw-bold">{{ "{:,}".format(p.total_2026) }}</div>
-                <div class="small text-muted">IC 95%: {{ "{:,}".format(p.total_2026_min) }} – {{ "{:,}".format(p.total_2026_max) }}</div>
+                <div class="text-uppercase small text-primary fw-semibold">Total proyectado {{ p.anio_objetivo }}</div>
+                <div class="display-6 fw-bold">{{ "{:,}".format(p.total_objetivo) }}</div>
+                <div class="small text-muted">IC 95%: {{ "{:,}".format(p.total_objetivo_min) }} – {{ "{:,}".format(p.total_objetivo_max) }}</div>
             </div>
         </div>
     </div>
@@ -36,9 +37,9 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
             <div class="card-body">
-                <div class="text-uppercase small text-warning fw-semibold">Real 2025 (hasta {{ p.ultimo_mes }})</div>
-                <div class="display-6 fw-bold">{{ "{:,}".format(p.total_2025_real) }}</div>
-                <div class="small text-muted">Denuncias registradas en SIDPOL</div>
+                <div class="text-uppercase small text-warning fw-semibold">Real {{ p.anio_actual }} (hasta {{ p.ultimo_mes }})</div>
+                <div class="display-6 fw-bold">{{ "{:,}".format(p.real_actual) }}</div>
+                <div class="small text-muted">{% if p.anio_completo %}Año completo{% else %}Cierre estimado de {{ p.anio_actual }}: <strong>{{ "{:,}".format(p.cierre_actual) }}</strong>{% endif %}</div>
             </div>
         </div>
     </div>
@@ -47,7 +48,7 @@
 <!-- Gráfico -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white fw-semibold">
-        Últimos 24 meses reales y pronóstico hasta diciembre de 2026
+        Últimos 24 meses reales y pronóstico hasta diciembre de {{ p.anio_objetivo }}
     </div>
     <div class="card-body">
         <div style="position: relative; height: 340px;">
@@ -59,9 +60,10 @@
 <div class="row g-4 mb-2">
     <div class="col-lg-7">
         {{ sec.que_significa([
-            "El modelo espera que la baja de denuncias continúe en 2026: <strong>" ~ "{:,}".format(p.total_2026) ~ "</strong> (rango probable: " ~ "{:,}".format(p.total_2026_min) ~ " – " ~ "{:,}".format(p.total_2026_max) ~ ").",
-            "Es <strong>3 veces más preciso</strong> que la regresión lineal usada antes (error de " ~ p.mape_sarima ~ "% frente a " ~ p.mape_lineal ~ "%), que proyectaba un aumento porque no detectaba el cambio de tendencia de 2024.",
-            "La proyección es del total: la <strong>extorsión</strong> va en sentido contrario y debe vigilarse aparte (ver <a href='" ~ url_for('secciones.delitos') ~ "'>Delitos</a>).",
+            "Para " ~ p.anio_objetivo ~ " el modelo espera <strong>" ~ "{:,}".format(p.total_objetivo) ~ "</strong> denuncias (rango probable: " ~ "{:,}".format(p.total_objetivo_min) ~ " – " ~ "{:,}".format(p.total_objetivo_max) ~ "): "
+                ~ ("una baja" if var_obj < -2 else ("un aumento" if var_obj > 2 else "un nivel estable")) ~ " frente al cierre estimado de " ~ p.anio_actual ~ " (" ~ "%+.1f"|format(var_obj) ~ "%).",
+            "El modelo es más preciso que una regresión lineal: error de <strong>" ~ p.mape_sarima ~ "%</strong> frente a " ~ p.mape_lineal ~ "% al pronosticar los últimos 12 meses reales.",
+            "La proyección es del total: cada delito tiene su propia tendencia (ver <a href='" ~ url_for('secciones.delitos') ~ "'>Delitos</a>).",
         ]) }}
     </div>
     <div class="col-lg-5">
@@ -78,6 +80,7 @@
     <li><strong>Modelo:</strong> {{ p.modelo }} ("airline model" de Box-Jenkins), que captura tendencia y estacionalidad anual.</li>
     <li><strong>Pandemia:</strong> los meses de marzo de 2020 a febrero de 2021 se modelan con indicadores de intervención, para que la caída atípica no distorsione la tendencia.</li>
     <li><strong>Validación:</strong> el modelo se entrenó sin los últimos 12 meses y se comparó su pronóstico con lo realmente ocurrido. Error medio absoluto porcentual (MAPE) = <strong>{{ p.mape_sarima }}%</strong>, frente a <strong>{{ p.mape_lineal }}%</strong> de la regresión lineal.</li>
+    <li><strong>Registro tardío:</strong> los meses más recientes de cada versión del dataset todavía se están completando. La proyección hecha con datos hasta octubre de 2025 esperaba 565 mil denuncias entre enero y octubre de 2026; hubo 748 mil (error de −24%), porque los últimos meses de esa versión aparecían hasta un 20% más bajos. Por eso el modelo se reentrena con cada versión nueva.</li>
     <li><strong>Incertidumbre:</strong> la banda sombreada es el intervalo de confianza mensual (95%). El intervalo del total anual se estima con 1,000 simulaciones del modelo.</li>
 </ul>
 <p class="small text-muted mb-0">Proyección exploratoria con fines académicos; no es un pronóstico oficial. Más detalle en <a href="{{ url_for('secciones.metodologia') }}">Metodología</a>.</p>

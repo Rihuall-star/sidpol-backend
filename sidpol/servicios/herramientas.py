@@ -7,12 +7,13 @@ de la respuesta. Así se mitiga el riesgo de "agencia excesiva" (OWASP Top 10 pa
 y la inyección de consultas a través del prompt.
 """
 import unicodedata
+from datetime import date
 
 from sidpol.servicios import analitica, resultados
 
 MODALIDADES = analitica.MODALIDADES_ORDEN
 DEPARTAMENTOS = analitica.DEPARTAMENTOS
-ANIO_MIN, ANIO_MAX = 2018, 2025
+ANIO_MIN, ANIO_MAX = 2018, date.today().year
 MAX_FILAS = 15
 
 ALIAS_DEPARTAMENTO = {
@@ -99,7 +100,7 @@ def ranking_departamentos(repo, anio=None, modalidad=None, n=10):
         {"$match": {**_filtro(modalidad, None, anio), "DPTO_HECHO_NEW": {"$nin": [None, ""]}}},
         {"$group": {"_id": "$DPTO_HECHO_NEW", "total": {"$sum": "$cantidad"}}},
         {"$sort": {"total": -1}}, {"$limit": n}])
-    return {"anio": anio or "2018-2025", "modalidad": modalidad or "todas",
+    return {"anio": anio or "todos", "modalidad": modalidad or "todas",
             "ranking": [{"departamento": analitica.nombre(d["_id"]), "total": d["total"]} for d in filas]}
 
 
@@ -109,7 +110,7 @@ def principales_delitos(repo, departamento=None, anio=None, n=5):
         {"$match": _filtro(None, departamento, anio)},
         {"$group": {"_id": "$P_MODALIDADES", "total": {"$sum": "$cantidad"}}},
         {"$sort": {"total": -1}}, {"$limit": n}])
-    return {"departamento": departamento or "nacional", "anio": anio or "2018-2025",
+    return {"departamento": departamento or "nacional", "anio": anio or "todos",
             "delitos": [{"modalidad": d["_id"], "total": d["total"]} for d in filas if d["_id"]]}
 
 
@@ -146,12 +147,12 @@ def focos_distritales(repo, modalidad="Extorsión", departamento=None, anio=None
                            "departamento": analitica.nombre(d["_id"]["p"]), "total": d["total"]} for d in filas]}
 
 
-def proyeccion_2026(repo):
+def proyeccion_anual(repo):
     p = resultados.obtener(repo, "proyeccion")
     if not p:
         return {"error": "Proyección no disponible"}
-    return {k: p[k] for k in ("modelo", "total_2026", "total_2026_min", "total_2026_max",
-                              "total_2025_real", "ultimo_mes", "mape_sarima", "mape_lineal")}
+    return {k: p[k] for k in ("modelo", "anio_objetivo", "total_objetivo", "total_objetivo_min", "total_objetivo_max",
+                              "anio_actual", "real_actual", "cierre_actual", "ultimo_mes", "mape_sarima", "mape_lineal")}
 
 
 # ---------------------------------------------------------------------
@@ -165,7 +166,7 @@ _N = {"type": "integer", "minimum": 1, "maximum": MAX_FILAS}
 
 HERRAMIENTAS = {
     "denuncias_por_anio": (denuncias_por_anio,
-        "Total de denuncias por año (2018-2025), nacional o de un departamento, de todas o de una modalidad.",
+        "Total de denuncias por año (desde 2018), nacional o de un departamento, de todas o de una modalidad.",
         {"modalidad": _MOD, "departamento": _DPTO}, []),
     "ranking_departamentos": (ranking_departamentos,
         "Departamentos con más denuncias, opcionalmente de un año o una modalidad.",
@@ -180,8 +181,9 @@ HERRAMIENTAS = {
     "focos_distritales": (focos_distritales,
         "Distritos con más denuncias de una modalidad (por defecto extorsión) en un año.",
         {"modalidad": _MOD, "departamento": _DPTO, "anio": _ANIO, "n": _N}, []),
-    "proyeccion_2026": (proyeccion_2026,
-        "Proyección de denuncias para 2026 (SARIMA) con su intervalo de confianza y error de validación.",
+    "proyeccion_anual": (proyeccion_anual,
+        "Proyección de denuncias del próximo año (SARIMA) con su intervalo de confianza, el cierre estimado "
+        "del año en curso y el error de validación.",
         {}, []),
 }
 

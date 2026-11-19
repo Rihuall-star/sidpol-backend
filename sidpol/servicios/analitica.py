@@ -8,9 +8,11 @@ Son funciones puras: reciben una colección (la gold o la cruda, que tienen los 
 y devuelven diccionarios serializables. No guardan caché: de eso se encarga `resultados.py`.
 """
 MODALIDADES_ORDEN = [
-    "Extorsión", "Homicidio", "Estafa", "Hurto", "Robo",
+    "Extorsión", "Secuestro", "Homicidio", "Estafa", "Hurto", "Robo",
     "Violencia contra la mujer e integrantes", "Otros",
 ]
+# Delito grave que se compara con la extorsión, según la versión del dataset
+MODALIDADES_COMPARACION = ["Secuestro", "Homicidio"]
 
 # Población estimada por departamento (aprox.). Se usa solo para tasas por 100 mil habitantes.
 POBLACION = {
@@ -156,10 +158,12 @@ def delitos(col):
             "record": parcial.get(m, {}).get(anio_fin, 0) > max([v.get(a, 0) for a in anios if a < anio_fin] or [0]),
         })
 
-    # Extorsión vs homicidio por trimestre (nacional)
+    # Extorsión frente a un delito grave de baja frecuencia. Las versiones del dataset cambian
+    # de modalidades (hasta oct-2025 venía "Homicidio"; desde 2026 viene "Secuestro").
+    segunda = next((m for m in MODALIDADES_COMPARACION if m in matriz), None)
     trim = {}
     for d in col.aggregate([
-        {"$match": {"P_MODALIDADES": {"$in": ["Extorsión", "Homicidio"]}}},
+        {"$match": {"P_MODALIDADES": {"$in": ["Extorsión", segunda]}}},
         {"$group": {"_id": {"t": "$anio_trimestre", "m": "$P_MODALIDADES"}, "total": {"$sum": "$cantidad"}}}]):
         t, m = d["_id"].get("t"), d["_id"].get("m")
         if t and trimestre_completo(t, anio_fin, mes_fin):
@@ -167,18 +171,22 @@ def delitos(col):
     trim_etq = sorted(trim)
 
     ext = next((f for f in filas if f["modalidad"] == "Extorsión"), None)
-    hom = next((f for f in filas if f["modalidad"] == "Homicidio"), None)
+    seg = next((f for f in filas if f["modalidad"] == segunda), None)
     est = next((f for f in filas if f["modalidad"] == "Estafa"), None)
     caen = sorted([f for f in filas if f["var_parcial"] is not None and f["var_parcial"] < 0],
                   key=lambda f: f["var_parcial"])
+    completos = [a for a in anios if a <= ultimo_completo]
+    pico_ext = max(completos, key=lambda a: matriz.get("Extorsión", {}).get(a, 0)) if ext and completos else None
 
     return {
         "anio_fin": anio_fin, "mes_fin": mes_fin, "periodo": f"ene–{MESES[mes_fin - 1]}",
         "ultimo_completo": ultimo_completo, "anios": anios, "filas": filas,
-        "extorsion": ext, "homicidio": hom, "estafa": est, "caen": caen,
+        "extorsion": ext, "segunda": seg, "segunda_nombre": segunda, "estafa": est, "caen": caen,
+        "extorsion_pico_anio": pico_ext,
+        "extorsion_pico_total": matriz.get("Extorsión", {}).get(pico_ext, 0) if pico_ext else 0,
         "trim_etiquetas": trim_etq,
         "trim_extorsion": [trim[t].get("Extorsión", 0) for t in trim_etq],
-        "trim_homicidio": [trim[t].get("Homicidio", 0) for t in trim_etq],
+        "trim_segunda": [trim[t].get(segunda, 0) for t in trim_etq],
     }
 
 

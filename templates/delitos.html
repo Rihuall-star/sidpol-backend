@@ -4,14 +4,16 @@
 {% block title %}Delitos - SIDPOL{% endblock %}
 
 {% block content %}
-{% if not d or not d.extorsion or not d.homicidio or not d.estafa %}
+{% if not d or not d.extorsion or not d.segunda or not d.estafa %}
 <div class="alert alert-warning">No hay datos suficientes para mostrar esta sección.</div>
 {% else %}
-{% set ext, hom, est = d.extorsion, d.homicidio, d.estafa %}
+{% set ext, seg, est = d.extorsion, d.segunda, d.estafa %}
+{% set seg_nombre = d.segunda_nombre | lower %}
 
 {{ sec.encabezado(2, "Delitos · ¿Qué delitos crecen y cuáles bajan?",
-    "La extorsión rompió su récord en " ~ d.anio_fin ~ ", mientras robo y hurto caen",
-    "Comparamos las 7 modalidades que registra el SIDPOL: cómo cambió cada una desde 2018 y qué está pasando en " ~ d.anio_fin ~ ".",
+    ("La extorsión rompió su récord en " ~ d.anio_fin ~ ", mientras robo y hurto caen") if ext.record else
+    ("La extorsión creció +" ~ ext.var_2018 ~ "% desde 2018 y tuvo su récord en " ~ d.extorsion_pico_anio),
+    "Comparamos las " ~ d.filas|length ~ " modalidades que registra el SIDPOL: cómo cambió cada una desde 2018 y qué está pasando en " ~ d.anio_fin ~ ".",
     "fa-scale-unbalanced") }}
 
 <div class="row g-4 mb-4">
@@ -34,18 +36,19 @@
     </div>
     <div class="col-lg-4">
         {{ sec.que_significa([
-            "La <strong>extorsión</strong> lleva " ~ "{:,}".format(ext.parcial_actual) ~ " denuncias en " ~ d.periodo ~ " de " ~ d.anio_fin ~ ": ya supera cualquier año completo anterior. Desde 2021 creció <strong>+" ~ ext.var_2021 ~ "%</strong>.",
-            "La <strong>estafa</strong> se cuadruplicó desde 2018 (<strong>+" ~ est.var_2018 ~ "%</strong>), en línea con el aumento del fraude digital.",
-            "La baja general de " ~ d.anio_fin ~ " se explica por <strong>robo (" ~ "%+d"|format((d.filas|selectattr('modalidad','equalto','Robo')|first).var_parcial) ~ "%)</strong> y <strong>hurto (" ~ "%+d"|format((d.filas|selectattr('modalidad','equalto','Hurto')|first).var_parcial) ~ "%)</strong>.",
-            "El <strong>homicidio</strong> tiene menos casos, pero sigue subiendo: +" ~ hom.var_2021 ~ "% desde 2021 y " ~ "%+d"|format(hom.var_parcial) ~ "% en " ~ d.anio_fin ~ ".",
+            ("La <strong>extorsión</strong> lleva " ~ "{:,}".format(ext.parcial_actual) ~ " denuncias en " ~ d.periodo ~ " de " ~ d.anio_fin ~ ": ya supera cualquier año completo anterior. Desde 2021 creció <strong>+" ~ ext.var_2021 ~ "%</strong>.") if ext.record else
+            ("La <strong>extorsión</strong> creció <strong>+" ~ ext.var_2021 ~ "%</strong> entre 2021 y " ~ d.ultimo_completo ~ ", con récord en " ~ d.extorsion_pico_anio ~ " (" ~ "{:,}".format(d.extorsion_pico_total) ~ "). En " ~ d.periodo ~ " de " ~ d.anio_fin ~ " varía <strong>" ~ "%+d"|format(ext.var_parcial) ~ "%</strong>."),
+            "La <strong>estafa</strong> creció <strong>+" ~ est.var_2018 ~ "%</strong> desde 2018, en línea con el aumento del fraude digital.",
+            "En " ~ d.periodo ~ " de " ~ d.anio_fin ~ ": <strong>robo (" ~ "%+d"|format((d.filas|selectattr('modalidad','equalto','Robo')|first).var_parcial) ~ "%)</strong> y <strong>hurto (" ~ "%+d"|format((d.filas|selectattr('modalidad','equalto','Hurto')|first).var_parcial) ~ "%)</strong>.",
+            "El <strong>" ~ seg_nombre ~ "</strong> tiene pocos casos: " ~ "%+d"|format(seg.var_2021 or 0) ~ "% desde 2021 y " ~ "%+d"|format(seg.var_parcial or 0) ~ "% en " ~ d.anio_fin ~ ".",
         ]) }}
     </div>
 </div>
 
-<!-- Extorsión vs homicidio -->
+<!-- Extorsión frente a otro delito grave -->
 <section id="extorsion" class="mt-5">
-    <h2 class="h4 mb-1"><i class="fas fa-crosshairs me-2" style="color: var(--sp-red);"></i>Extorsión y homicidio: dos curvas que suben</h2>
-    <p class="sp-sub mb-3">Denuncias por trimestre a nivel nacional. La extorsión (eje izquierdo) despega en 2022; el homicidio (eje derecho) crece de forma más gradual.</p>
+    <h2 class="h4 mb-1"><i class="fas fa-crosshairs me-2" style="color: var(--sp-red);"></i>Extorsión y {{ seg_nombre }} por trimestre</h2>
+    <p class="sp-sub mb-3">Denuncias por trimestre a nivel nacional. La extorsión (eje izquierdo) despega en 2022; el {{ seg_nombre }} (eje derecho) tiene muchos menos casos.</p>
     <div class="row g-4">
         <div class="col-lg-8 sp-fade d3">
             <div class="card h-100"><div class="card-body">
@@ -125,7 +128,7 @@
                 labels: {{ d.trim_etiquetas | tojson }},
                 datasets: [
                     { label: 'Extorsión', data: {{ d.trim_extorsion | tojson }}, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.12)', fill: true, tension: 0.3, pointRadius: 2, yAxisID: 'y' },
-                    { label: 'Homicidio', data: {{ d.trim_homicidio | tojson }}, borderColor: '#f59e0b', borderDash: [6, 4], tension: 0.3, pointRadius: 2, yAxisID: 'y1' }
+                    { label: {{ d.segunda_nombre | tojson }}, data: {{ d.trim_segunda | tojson }}, borderColor: '#f59e0b', borderDash: [6, 4], tension: 0.3, pointRadius: 2, yAxisID: 'y1' }
                 ]
             },
             options: {
@@ -134,7 +137,7 @@
                 scales: {
                     x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
                     y: { beginAtZero: true, title: { display: true, text: 'Extorsión' } },
-                    y1: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: 'Homicidio' } }
+                    y1: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: {{ d.segunda_nombre | tojson }} } }
                 }
             }
         });

@@ -55,7 +55,7 @@ def test_chat_ejecuta_la_herramienta_que_pide_el_modelo(repo, datos_completos, g
 
 
 def test_chat_limita_las_rondas_de_herramientas(repo, datos_completos, gemini_falso):
-    pide = RespuestaFalsa(llamadas=[("proyeccion_2026", {})])
+    pide = RespuestaFalsa(llamadas=[("proyeccion_anual", {})])
     falso = gemini_falso([pide, pide, RespuestaFalsa("respuesta final")])
     r = ia.responder_chat(repo, "pregunta", "contexto", rol="admin")
     assert r["respuesta"] == "respuesta final"
@@ -114,10 +114,11 @@ def test_ruta_del_chat_recorta_el_prompt_y_devuelve_fuentes(client, datos_comple
 
 def test_estratega_usa_cache_diaria(client, datos_completos, monkeypatch):
     llamadas = []
-    monkeypatch.setattr(ia, "consultar_estratega", lambda total, ctx, riesgo: llamadas.append(1) or "**Diagnóstico** de prueba")
-    proyeccion_fija = {"total_2026": 650000, "historico_etiquetas": [], "historico_valores": [],
-                       "ultimo_mes": "Oct 2025", "total_2025_real": 1, "modelo": "m",
-                       "total_2026_min": 1, "total_2026_max": 2, "mape_sarima": 6.0}
+    monkeypatch.setattr(ia, "consultar_estratega", lambda total, anio, ctx, riesgo: llamadas.append(1) or "**Diagnóstico** de prueba")
+    proyeccion_fija = {"total_objetivo": 650000, "anio_objetivo": 2026, "historico_etiquetas": [], "historico_valores": [],
+                       "ultimo_mes": "Oct 2025", "anio_actual": 2025, "real_actual": 1, "cierre_actual": 2,
+                       "anio_completo": False, "modelo": "m", "total_objetivo_min": 1, "total_objetivo_max": 2,
+                       "mape_sarima": 6.0}
     monkeypatch.setitem(resultados.CALCULOS, "proyeccion", (99, lambda r: proyeccion_fija))
     login(client, "demo", USUARIOS["demo"][0])
     for _ in range(3):

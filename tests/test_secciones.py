@@ -41,6 +41,16 @@ def test_secciones_cargan_con_su_pregunta(client, datos_completos, ruta, texto):
     assert "Qué significa" in html or ruta == "/metodologia"
 
 
+def test_delitos_con_la_version_2026_del_dataset(client, datos_completos):
+    """La versión 2026 trae Secuestro en lugar de Homicidio: la sección se adapta sola."""
+    datos_completos.update_many({"P_MODALIDADES": "Homicidio"}, {"$set": {"P_MODALIDADES": "Secuestro"}})
+    d = analitica.delitos(datos_completos)
+    assert d["segunda_nombre"] == "Secuestro" and d["segunda"]["modalidad"] == "Secuestro"
+    login(client, "demo", USUARIOS["demo"][0])
+    html = client.get("/delitos").get_data(as_text=True)
+    assert "Extorsión y secuestro por trimestre" in html and "homicidio" not in html.lower()
+
+
 def test_secciones_sin_datos_no_se_rompen(client, base_limpia):
     login(client, "demo", USUARIOS["demo"][0])
     for ruta in ["/", "/delitos", "/territorio", "/metodologia", "/riesgo-modalidad"]:
