@@ -1,5 +1,6 @@
 """Pruebas de los controles de seguridad (OWASP Top 10) de SIDPOL."""
 import re
+import secrets
 
 from conftest import USUARIOS, csrf_de, login
 
@@ -24,10 +25,22 @@ def test_csp_sin_unsafe_inline_en_scripts(client):
     script_src = next(d for d in r.headers["Content-Security-Policy"].split(";") if "script-src" in d)
     assert "'unsafe-inline'" not in script_src
     nonce = re.search(r"'nonce-([^']+)'", script_src).group(1)
-    html = r.get_data(as_text=True)
-    # Todo <script> en línea de la página lleva el nonce de esta respuesta
-    en_linea = re.findall(r"<script(?![^>]*\bsrc=)([^>]*)>", html)
-    assert en_linea and all(f'nonce="{nonce}"' in attrs for attrs in en_linea)
+    # Todo <script> en línea de la página lleva el nonce de esta respuesta (se analiza con un parser HTML)
+    from html.parser import HTMLParser
+
+    class Scripts(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.en_linea = []
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == "script" and "src" not in attrs:
+                self.en_linea.append(attrs.get("nonce"))
+
+    p = Scripts()
+    p.feed(r.get_data(as_text=True))
+    assert p.en_linea and all(n == nonce for n in p.en_linea)
 
 
 def test_nonce_cambia_en_cada_peticion(client):
@@ -129,7 +142,8 @@ def test_admin_accede_al_monitor_sin_ver_hashes(client):
 def test_admin_no_crea_usuarios_con_clave_corta(client, base_limpia):
     login(client, "admin_test", USUARIOS["admin_test"][0])
     token = csrf_de(client.get("/crear_usuario").get_data(as_text=True))
-    client.post("/crear_usuario", data={"username": "nuevo", "password": "corta", "rol": "admin",
+    clave_corta = secrets.token_hex(3)  # 6 caracteres: menos que el mínimo de 12
+    client.post("/crear_usuario", data={"username": "nuevo", "password": clave_corta, "rol": "admin",
                                         "csrf_token": token})
     assert base_limpia["usuarios"].find_one({"username": "nuevo"}) is None
 

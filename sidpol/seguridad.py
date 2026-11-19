@@ -11,10 +11,12 @@ import secrets
 from functools import wraps
 from urllib.parse import urlparse
 
-from flask import flash, g, jsonify, redirect, request, session, url_for
+from flask import current_app, flash, g, jsonify, redirect, request, session, url_for
 from flask_login import current_user
 from flask_wtf.csrf import CSRFError
 from markupsafe import Markup, escape
+from werkzeug.exceptions import HTTPException
+from werkzeug.routing import RequestRedirect
 
 CDN_SCRIPTS = "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://code.jquery.com"
 
@@ -46,18 +48,20 @@ def formato_ia(texto):
 
 
 def url_segura(url):
-    """Devuelve la ruta solo si apunta a este mismo sitio (evita redirecciones abiertas)."""
+    """Convierte una URL de origen (p. ej. el Referer) en una ruta de ESTA aplicación, o None.
+
+    No se reutiliza el texto recibido: se busca a qué vista de la app corresponde la ruta y se
+    reconstruye la URL con url_for. Así es imposible redirigir a otro sitio (open redirect)."""
     if not url:
         return None
     destino = urlparse(url)
     if destino.netloc and destino.netloc != request.host:
         return None
-    if destino.scheme and destino.scheme not in ("http", "https"):
+    try:
+        endpoint, argumentos = current_app.url_map.bind(request.host).match(destino.path or "/", method="GET")
+    except (HTTPException, RequestRedirect):
         return None
-    ruta = destino.path or "/"
-    if not ruta.startswith("/") or ruta.startswith("//"):
-        return None
-    return ruta + (f"?{destino.query}" if destino.query else "")
+    return url_for(endpoint, **argumentos)
 
 
 def admin_required(f):
