@@ -81,3 +81,11 @@ def test_simulador_estima_por_departamento_y_trimestre(client, datos_completos):
                                                "csrf_token": csrf_de(html)})
     assert r.status_code == 200
     assert "Proyección Estimada" in r.get_data(as_text=True)
+
+
+def test_metodologia_muestra_el_diagrama_de_arquitectura(client, datos_completos):
+    login(client, "demo", USUARIOS["demo"][0])
+    html = client.get("/metodologia").get_data(as_text=True)
+    assert "img/arquitectura.svg" in html
+    r = client.get("/static/img/arquitectura.svg")
+    assert r.status_code == 200 and b"<animateMotion" in r.data   # el diagrama está animado
