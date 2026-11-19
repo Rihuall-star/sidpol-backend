@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Rihuall-star/sidpol-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Rihuall-star/sidpol-backend/actions/workflows/ci.yml)
 
-Plataforma web de inteligencia de datos sobre las **denuncias policiales del Perú (SIDPOL, enero 2018 – octubre 2025, más de 337,000 registros)**. Combina analítica descriptiva, machine learning y un asistente de IA generativa que responde preguntas en lenguaje natural consultando la base de datos.
+Plataforma web de inteligencia de datos sobre las **denuncias policiales del Perú (SIDPOL, enero 2018 – octubre 2026: 7.6 millones de denuncias en 378,187 registros)**. Combina analítica descriptiva, machine learning y un asistente de IA generativa que responde preguntas en lenguaje natural consultando la base de datos.
 
 > Proyecto académico: curso *Tecnologías Emergentes en Inteligencia Artificial*, Maestría en Ingeniería de Sistemas e Informática, Universidad Nacional Mayor de San Marcos (2025).
 
@@ -13,9 +13,9 @@ Plataforma web de inteligencia de datos sobre las **denuncias policiales del Per
 
 ![Portada de SIDPOL](docs/img/login.png)
 
-| Dashboard | Radar de riesgo (K-Means) | Proyección 2026 |
+| Dashboard | Radar de riesgo (K-Means) | Proyección |
 |---|---|---|
-| ![Dashboard](docs/img/dashboard.png) | ![Clusters](docs/img/clusters.png) | ![Proyección 2026](docs/img/prediccion.png) |
+| ![Dashboard](docs/img/dashboard.png) | ![Clusters](docs/img/clusters.png) | ![Proyección](docs/img/prediccion.png) |
 
 ---
 
@@ -28,7 +28,7 @@ La aplicación cuenta una historia en 6 secciones. Cada una responde una pregunt
 | 1 | Panorama | ¿Qué está pasando? |
 | 2 | Delitos | ¿Qué delitos crecen y cuáles bajan? |
 | 3 | Territorio | ¿Dónde ocurre? (distritos, mapa, tasa por habitante, niveles de riesgo) |
-| 4 | Proyección | ¿Qué viene en 2026? (SARIMA + simulador) |
+| 4 | Proyección | ¿Qué viene el próximo año? (SARIMA + simulador) |
 | 5 | IA estratégica | ¿Qué se puede hacer? |
 | 6 | Metodología | ¿Por qué creerle a los datos? |
 
@@ -36,25 +36,27 @@ La aplicación cuenta una historia en 6 secciones. Cada una responde una pregunt
 
 | Módulo | Qué hace |
 |---|---|
-| **ETL y calidad de datos** | Normaliza los nombres de los 25 departamentos, agrega trimestres y corrige el conteo de denuncias (suma el campo `cantidad` en lugar de contar filas). |
+| **ETL y calidad de datos** | Une los CSV anuales, acepta las columnas de todas las versiones publicadas (`ANIO`/`MES` y `ANIO_REGISTRO`/`MES_REGISTRO`), valida tipos y rangos, agrega trimestres y suma el campo `cantidad` en lugar de contar filas. Cada carga queda registrada con su fecha de corte. |
 | **Clustering K-Means** | Agrupa los departamentos por su volumen total de denuncias en 3 niveles de riesgo: bajo, medio y crítico. |
-| **Análisis trimestral** | Compara la evolución de extorsión y homicidio en departamentos clave con el *Aggregation Framework* de MongoDB. |
+| **Análisis trimestral** | Compara la evolución de la extorsión con otro delito grave (secuestro u homicidio, según la versión del dataset) con el *Aggregation Framework* de MongoDB. |
 | **Análisis regional y per cápita** | Distribución por Costa, Sierra y Selva, y tasas ajustadas por población. |
-| **Proyección 2026** | Modelo **SARIMA(0,1,1)(0,1,1)₁₂** con intervención COVID-19, validado con los últimos 12 meses reales (**MAPE 6.0%** frente a 18.7% de la regresión lineal anterior) e intervalos de confianza por simulación. |
+| **Proyección anual** | Modelo **SARIMA(0,1,1)(0,1,1)₁₂** con intervención COVID-19 que estima el cierre del año en curso y el año siguiente. Validado con los últimos 12 meses reales (**MAPE 4.8%** frente a 15.7% de una regresión lineal), con intervalos de confianza por simulación. Se reentrena con cada versión de los datos. |
 | **Asistente con herramientas (Gemini)** | *Function calling*: el modelo elige entre 6 herramientas de datos de solo lectura (ranking, comparación de años, focos distritales, proyección…), la aplicación las ejecuta sobre MongoDB y el modelo responde con esas cifras. El chat muestra qué herramientas usó. |
 | **Agentes** | Un *agente estratégico* genera un plan de acción a partir de la proyección y un *analista táctico* comenta la estimación del simulador (Random Forest por departamento y trimestre). |
 | **Mapas de calor** | Visualización geoespacial de las zonas críticas (Highcharts Maps). |
 | **Autenticación y roles** | Login con Flask-Login, contraseñas con hash (Werkzeug), rutas de administración y auditoría protegidas por rol, y límite diario de consultas a la IA para la cuenta demo. |
 
 ## 📊 Hallazgos principales
-- **Cambio de tendencia:** las denuncias alcanzaron su máximo en 2023 (1,042,703) y vienen bajando desde mediados de 2024. El modelo SARIMA proyecta **~654 mil denuncias en 2026** (IC 95%: 433k – 884k); la regresión lineal anterior proyectaba más de 1 millón porque ignoraba ese cambio.
-- **Extorsión:** pasó de 4,734 denuncias en 2021 a 22,356 en 2024 (**+372%**) y sigue creciendo en 2025 (+27% ene-oct), a contracorriente de la caída general.
-- **Concentración de la extorsión:** el 50% de los casos de 2024 ocurrió en solo **23 de 606 distritos** (Trujillo, San Juan de Lurigancho, Cercado de Lima, Sullana…), y esos focos crecieron entre +300% y +800% desde 2021.
-- **Estafa:** se cuadruplicó entre 2018 y 2024 (+317%).
-- **Violencia contra la mujer:** es el delito más denunciado en **22 de 26 departamentos** (sin contar «otros»).
-- **Lima Metropolitana** queda sola en el cluster de riesgo crítico (más de 2.3 millones de denuncias); Arequipa, Lambayeque, La Libertad y Piura encabezan el nivel medio.
-- **La Costa concentra el 75%** de las denuncias del país (5.0 de 6.7 millones).
-- Corregir el conteo (suma de `cantidad` frente a conteo de filas) mostró una incidencia **mayor a la que se obtiene con un conteo simple**.
+> Datos hasta **octubre de 2026** (versión publicada el 9 de noviembre de 2026). Los años 2018–2025 están cerrados.
+
+- **Cambio de tendencia:** las denuncias alcanzaron su máximo en 2023 (1,042,205), bajaron 11% en 2025 (906,527) y en ene–oct de 2026 van 2% por debajo del mismo periodo de 2025. SARIMA estima un **cierre de 2026 de ~895 mil** y **~905 mil para 2027** (IC 95%: 703 mil – 1.11 millones).
+- **Extorsión:** pasó de 4,352 denuncias en 2021 a su **récord de 27,102 en 2025 (+523%)**. En ene–oct de 2026 **cae 23%**.
+- **Concentración de la extorsión:** el 50% de los casos de 2025 ocurrió en solo **20 de 656 distritos** (Cercado de Lima, San Juan de Lurigancho, Trujillo, Sullana…), y esos focos crecieron entre +500% y +1,500% desde 2021.
+- **Estafa:** creció **+342%** entre 2018 y 2025.
+- **Violencia contra la mujer:** es el delito más denunciado en **21 de 26 departamentos** (sin contar «otros»).
+- **Lima Metropolitana** queda sola en el cluster de riesgo crítico (35% de todas las denuncias); Arequipa, Lambayeque, La Libertad y Piura encabezan el nivel medio.
+- **La Costa concentra el 75%** de las denuncias del país (5.7 de 7.6 millones).
+- **Registro tardío (lección del proyecto):** la proyección hecha con la versión anterior (datos hasta octubre de 2025) esperaba 565 mil denuncias entre enero y octubre de 2026; hubo **748 mil (error de −24%)**. Los últimos meses de esa versión aparecían hasta un 20% más bajos porque aún no se habían registrado todas las denuncias, y el modelo lo leyó como una caída. Entre versiones, además, los años 2018–2024 variaron menos de 1% y varias denuncias cambiaron de modalidad (desapareció «Homicidio» y apareció «Secuestro»).
 
 ## 🏗️ Arquitectura
 

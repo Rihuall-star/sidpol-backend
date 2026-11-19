@@ -11,7 +11,7 @@
 
 {{ sec.encabezado(1, "Panorama · ¿Qué está pasando?",
     ("Las denuncias bajan desde " ~ pan.pico ~ ", pero la extorsión rompe récords") if ext.record else
-    ("Las denuncias bajan desde " ~ pan.pico ~ " y la extorsión cae " ~ "%+d"|format(ext.var_parcial) ~ "% en " ~ pan.anio_fin ~ " tras su récord de " ~ dl.extorsion_pico_anio),
+    ("Las denuncias bajan desde " ~ pan.pico ~ " y la extorsión " ~ ("cae " if ext.var_parcial < 0 else "sube ") ~ ext.var_parcial|abs ~ "% en " ~ pan.anio_fin ~ " tras su récord de " ~ dl.extorsion_pico_anio),
     "{:,}".format(pan.total) ~ " denuncias policiales registradas en el Perú entre " ~ pan.anios[0] ~ " y " ~ pan.anios[-1]
     ~ " (datos abiertos SIDPOL). Así cambió el panorama y hacia dónde va.", "fa-earth-americas") }}
 
