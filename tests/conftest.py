@@ -6,6 +6,7 @@ Configuración de pruebas de SIDPOL.
 """
 import os
 import re
+import secrets
 import sys
 
 import mongomock
@@ -14,8 +15,8 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-# Variables mínimas para que la app arranque (antes de importarla)
-os.environ["SECRET_KEY"] = "clave-solo-para-pruebas"
+# Variables mínimas para que la app arranque (antes de importarla). Clave aleatoria en cada ejecución.
+os.environ["SECRET_KEY"] = secrets.token_hex(32)
 # Vacía (no borrada): así load_dotenv() no la vuelve a cargar desde .env y ninguna prueba llama a Gemini
 os.environ["GEMINI_API_KEY"] = ""
 os.environ.pop("RENDER", None)

@@ -155,10 +155,10 @@ def test_formato_ia_escapa_html_y_da_formato():
     assert "<script>" not in salida and "&lt;script&gt;" in salida
 
 
-def test_chat_escapa_html_en_el_navegador():
+def test_chat_no_inserta_html_en_el_navegador():
     js = open("static/js/sidpol-chat.js", encoding="utf-8").read()
-    assert "function escapeHtml" in js
-    assert "escapeHtml(msg)" in js and "escapeHtml(fuentes.join" in js
+    assert "innerHTML" not in js and "insertAdjacentHTML" not in js   # todo el texto va por textContent
+    assert "document.createTextNode(msg)" in js
 
 
 # ---------- Operación ----------

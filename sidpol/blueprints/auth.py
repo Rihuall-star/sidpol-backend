@@ -36,8 +36,9 @@ def login():
             _auditar(username, "Inicio de Sesión")
             return redirect(url_for("secciones.index"))
 
-        _auditar(username, "Intento fallido")  # útil para detectar fuerza bruta
-        log.warning("intento de login fallido", extra={"usuario": username[:50], "ip": request.remote_addr})
+        _auditar(username, "Intento fallido")  # queda en la auditoría (solo admin); útil contra fuerza bruta
+        # En el log de la aplicación no se escriben datos de cuenta, solo el evento y el origen
+        log.warning("intento de login fallido", extra={"ip": request.remote_addr})
         flash("Usuario o contraseña incorrectos", "error")
         return redirect(url_for("auth.login"))
 

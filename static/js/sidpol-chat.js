@@ -1,23 +1,44 @@
-/* SIDPOL · asistente de IA (sin JavaScript en línea, compatible con la CSP con nonce) */
+/* SIDPOL · asistente de IA
+ * Sin JavaScript en línea (compatible con la CSP con nonce) y sin insertar HTML: todo el texto del
+ * usuario y de la IA se inserta con textContent, así ningún contenido puede convertirse en código (XSS). */
 (function () {
     'use strict';
 
-    // Escapa HTML antes de insertar texto en la página (prevención de XSS)
-    function escapeHtml(t) {
-        return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-    function formatText(text) {
-        return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\* /g, '<br>• ').replace(/\n/g, '<br>');
+    // Convierte el texto de la IA en nodos: **negrita**, viñetas "* " y saltos de línea, sin interpretar HTML
+    function textoConFormato(texto) {
+        const fragmento = document.createDocumentFragment();
+        String(texto).split('\n').forEach(function (linea, i) {
+            if (i > 0) fragmento.appendChild(document.createElement('br'));
+            linea = linea.replace(/^\s*\* /, '• ');
+            linea.split(/(\*\*[^*]+\*\*)/).forEach(function (parte) {
+                if (/^\*\*[^*]+\*\*$/.test(parte)) {
+                    const b = document.createElement('b');
+                    b.textContent = parte.slice(2, -2);
+                    fragmento.appendChild(b);
+                } else if (parte) {
+                    fragmento.appendChild(document.createTextNode(parte));
+                }
+            });
+        });
+        return fragmento;
     }
 
-    function burbuja(chatBody, html, clase, lado) {
+    function burbuja(chatBody, contenido, clase, lado) {
         const fila = document.createElement('div');
         fila.className = 'd-flex mb-3 justify-content-' + lado;
-        fila.innerHTML = `<div class="${clase} shadow-sm">${html}</div>`;
+        const caja = document.createElement('div');
+        caja.className = clase + ' shadow-sm';
+        if (contenido) caja.appendChild(contenido);
+        fila.appendChild(caja);
         chatBody.appendChild(fila);
         chatBody.scrollTop = chatBody.scrollHeight;
-        return fila;
+        return { fila: fila, caja: caja };
+    }
+
+    function puntosCargando() {
+        const f = document.createDocumentFragment();
+        for (let i = 0; i < 3; i++) f.appendChild(document.createElement('span'));
+        return f;
     }
 
     function toggleChat() {
@@ -32,9 +53,9 @@
         const msg = input.value.trim();
         if (!msg) return;
         const chatBody = document.getElementById('chat-messages');
-        burbuja(chatBody, escapeHtml(msg), 'chat-bubble-user', 'end');
+        burbuja(chatBody, document.createTextNode(msg), 'chat-bubble-user', 'end');
         input.value = '';
-        const cargando = burbuja(chatBody, '<span></span><span></span><span></span>', 'chat-bubble-bot typing', 'start');
+        const cargando = burbuja(chatBody, puntosCargando(), 'chat-bubble-bot typing', 'start');
 
         fetch('/chat-ia', {
             method: 'POST',
@@ -44,27 +65,32 @@
             },
             body: 'mensaje=' + encodeURIComponent(msg)
         })
-            .then(r => r.json())
-            .then(data => {
-                cargando.remove();
-                let html = formatText(data.respuesta || 'Sin respuesta.');
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                cargando.fila.remove();
+                const respuesta = burbuja(chatBody, textoConFormato(data.respuesta || 'Sin respuesta.'), 'chat-bubble-bot', 'start');
                 const fuentes = (data.fuentes || []).filter(Boolean);
                 if (fuentes.length) {
-                    html += `<div class="sp-chat-fuentes"><i class="fas fa-database me-1"></i>${escapeHtml(fuentes.join(' · '))}</div>`;
+                    const pie = document.createElement('div');
+                    pie.className = 'sp-chat-fuentes';
+                    const icono = document.createElement('i');
+                    icono.className = 'fas fa-database me-1';
+                    pie.appendChild(icono);
+                    pie.appendChild(document.createTextNode(fuentes.join(' · ')));
+                    respuesta.caja.appendChild(pie);
                 }
-                burbuja(chatBody, html, 'chat-bubble-bot', 'start');
             })
-            .catch(() => {
-                cargando.remove();
-                burbuja(chatBody, 'No se pudo conectar con el asistente.', 'chat-bubble-bot', 'start');
+            .catch(function () {
+                cargando.fila.remove();
+                burbuja(chatBody, document.createTextNode('No se pudo conectar con el asistente.'), 'chat-bubble-bot', 'start');
             });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('[data-chat="alternar"]').forEach(b => b.addEventListener('click', toggleChat));
+        document.querySelectorAll('[data-chat="alternar"]').forEach(function (b) { b.addEventListener('click', toggleChat); });
         const enviar = document.getElementById('chat-enviar');
         if (enviar) enviar.addEventListener('click', sendMessage);
         const input = document.getElementById('chat-input');
-        if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+        if (input) input.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendMessage(); });
     });
 })();

@@ -55,8 +55,9 @@ jobs:
         run: |
           docker network create red-ci
           docker run -d --name mongo --network red-ci mongo:7
+          # Clave aleatoria generada en cada ejecución: ningún valor fijo queda en el repositorio
           docker run -d --name web --network red-ci -p 8000:8000 \
-            -e SECRET_KEY=solo-para-ci -e MONGO_URI=mongodb://mongo:27017/ sidpol:ci
+            -e SECRET_KEY="$(openssl rand -hex 32)" -e MONGO_URI=mongodb://mongo:27017/ sidpol:ci
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:8000/health; then exit 0; fi
             sleep 2
