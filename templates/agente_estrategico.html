@@ -16,7 +16,7 @@
                 <div class="text-uppercase small text-primary fw-semibold">Impacto esperado 2026</div>
                 <div class="display-6 fw-bold">{{ total }}</div>
                 <div class="small text-muted">Denuncias proyectadas (modelo SARIMA)</div>
-                <a href="{{ url_for('prediccion_2026') }}" class="btn btn-sm btn-outline-primary mt-3">
+                <a href="{{ url_for('secciones.prediccion_2026') }}" class="btn btn-sm btn-outline-primary mt-3">
                     <i class="fas fa-chart-line me-1"></i> Ver proyección detallada
                 </a>
             </div>
@@ -48,6 +48,6 @@
 </div>
 
 {{ sec.navegacion(
-    anterior={"url": url_for('prediccion_2026'), "texto": "4 · Proyección 2026"},
-    siguiente={"url": url_for('metodologia'), "texto": "6 · ¿Por qué creerle a los datos?"}) }}
+    anterior={"url": url_for('secciones.prediccion_2026'), "texto": "4 · Proyección 2026"},
+    siguiente={"url": url_for('secciones.metodologia'), "texto": "6 · ¿Por qué creerle a los datos?"}) }}
 {% endblock %}

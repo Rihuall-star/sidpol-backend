@@ -1,0 +1,41 @@
+# Entorno local completo: MongoDB + SIDPOL
+#   docker compose up -d --build
+#   docker compose run --rm etl            # carga el CSV y ejecuta el precálculo (una vez)
+#   http://localhost:8000
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-datos:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      retries: 5
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  etl:
+    build: .
+    profiles: ["herramientas"]
+    command: python etl_carga_mongo.py /datos/denuncias_sidpol.csv
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/
+    volumes:
+      - ./etl_carga_mongo.py:/app/etl_carga_mongo.py:ro
+      - ./denuncias_sidpol.csv:/datos/denuncias_sidpol.csv:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-datos:

@@ -89,28 +89,28 @@
     <div class="col-md-6 col-xl-3 sp-fade d1">
         {{ sec.hallazgo("red", "fa-mask", "+" ~ ext.var_2021 ~ " %",
             "Creció la extorsión entre 2021 y " ~ dl.ultimo_completo ~ ". Es el delito que más se disparó.",
-            url_for('delitos'), "Ver delitos") }}
+            url_for('secciones.delitos'), "Ver delitos") }}
     </div>
     <div class="col-md-6 col-xl-3 sp-fade d2">
         {{ sec.hallazgo("amber", "fa-location-crosshairs", ter.distritos_50 ~ " distritos",
             "Concentran la mitad de toda la extorsión de " ~ ter.ultimo_completo ~ " (de " ~ ter.distritos_con_casos ~ " con casos).",
-            url_for('territorio'), "Ver territorio") }}
+            url_for('secciones.territorio'), "Ver territorio") }}
     </div>
     <div class="col-md-6 col-xl-3 sp-fade d3">
         {{ sec.hallazgo("cyan", "fa-venus", ter.vcm_lider ~ " de " ~ ter.n_departamentos,
             "Departamentos donde la violencia contra la mujer es el delito más denunciado (sin contar «Otros»).",
-            url_for('territorio') ~ "#delito-principal", "Ver por departamento") }}
+            url_for('secciones.territorio') ~ "#delito-principal", "Ver por departamento") }}
     </div>
     <div class="col-md-6 col-xl-3 sp-fade d4">
         {{ sec.hallazgo("violet", "fa-chart-line", "{:,}".format(proyeccion.total_2026) if proyeccion else "—",
             "Denuncias proyectadas para 2026: la tendencia a la baja continuaría, salvo en extorsión.",
-            url_for('prediccion_2026'), "Ver proyección") }}
+            url_for('secciones.prediccion_2026'), "Ver proyección") }}
     </div>
 </div>
 
-{{ sec.navegacion(siguiente={"url": url_for('delitos'), "texto": "2 · ¿Qué delitos crecen y cuáles bajan?"}) }}
+{{ sec.navegacion(siguiente={"url": url_for('secciones.delitos'), "texto": "2 · ¿Qué delitos crecen y cuáles bajan?"}) }}
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     (function () {
         const anios = {{ pan.anios | tojson }};
         const valores = {{ pan.serie_anual | tojson }};

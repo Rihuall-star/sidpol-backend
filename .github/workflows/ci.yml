@@ -40,3 +40,26 @@ jobs:
 
       - name: Auditoría de vulnerabilidades (pip-audit)
         run: pip-audit -r requirements.txt --no-deps --disable-pip --progress-spinner off
+
+  imagen:
+    name: Imagen Docker y chequeo de salud
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: docker build -t sidpol:ci .
+
+      - name: Arrancar con MongoDB y comprobar /health
+        run: |
+          docker network create red-ci
+          docker run -d --name mongo --network red-ci mongo:7
+          docker run -d --name web --network red-ci -p 8000:8000 \
+            -e SECRET_KEY=solo-para-ci -e MONGO_URI=mongodb://mongo:27017/ sidpol:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs web
+          exit 1

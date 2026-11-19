@@ -55,7 +55,7 @@
         <div class="col-lg-4">
             {{ sec.que_significa([
                 "La extorsión pasó de unos " ~ "{:,}".format((d.trim_extorsion[:4]|sum)//4) ~ " casos por trimestre en 2018 a más de " ~ "{:,}".format(d.trim_extorsion[-4:]|max) ~ " en los trimestres recientes.",
-                "Ambos delitos se concentran en Lima y la costa norte (ver <a href='" ~ url_for('territorio') ~ "'>Territorio</a>).",
+                "Ambos delitos se concentran en Lima y la costa norte (ver <a href='" ~ url_for('secciones.territorio') ~ "'>Territorio</a>).",
                 "Por su impacto, son los delitos que justifican priorizar recursos aunque el total de denuncias baje.",
             ], "Por qué importa") }}
         </div>
@@ -83,10 +83,10 @@
 {% endcall %}
 
 {{ sec.navegacion(
-    anterior={"url": url_for('index'), "texto": "1 · Panorama"},
-    siguiente={"url": url_for('territorio'), "texto": "3 · ¿Dónde ocurre?"}) }}
+    anterior={"url": url_for('secciones.index'), "texto": "1 · Panorama"},
+    siguiente={"url": url_for('secciones.territorio'), "texto": "3 · ¿Dónde ocurre?"}) }}
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     (function () {
         const filas = {{ d.filas | tojson }};
         const periodos = {

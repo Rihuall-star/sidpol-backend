@@ -98,7 +98,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     // Rellena el formulario con la cuenta demo y lo envía
     document.getElementById('btnDemo').addEventListener('click', function () {
         document.getElementById('username').value = 'demo';

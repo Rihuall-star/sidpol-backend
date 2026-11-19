@@ -61,7 +61,7 @@
         {{ sec.que_significa([
             "El modelo espera que la baja de denuncias continúe en 2026: <strong>" ~ "{:,}".format(p.total_2026) ~ "</strong> (rango probable: " ~ "{:,}".format(p.total_2026_min) ~ " – " ~ "{:,}".format(p.total_2026_max) ~ ").",
             "Es <strong>3 veces más preciso</strong> que la regresión lineal usada antes (error de " ~ p.mape_sarima ~ "% frente a " ~ p.mape_lineal ~ "%), que proyectaba un aumento porque no detectaba el cambio de tendencia de 2024.",
-            "La proyección es del total: la <strong>extorsión</strong> va en sentido contrario y debe vigilarse aparte (ver <a href='" ~ url_for('delitos') ~ "'>Delitos</a>).",
+            "La proyección es del total: la <strong>extorsión</strong> va en sentido contrario y debe vigilarse aparte (ver <a href='" ~ url_for('secciones.delitos') ~ "'>Delitos</a>).",
         ]) }}
     </div>
     <div class="col-lg-5">
@@ -80,14 +80,14 @@
     <li><strong>Validación:</strong> el modelo se entrenó sin los últimos 12 meses y se comparó su pronóstico con lo realmente ocurrido. Error medio absoluto porcentual (MAPE) = <strong>{{ p.mape_sarima }}%</strong>, frente a <strong>{{ p.mape_lineal }}%</strong> de la regresión lineal.</li>
     <li><strong>Incertidumbre:</strong> la banda sombreada es el intervalo de confianza mensual (95%). El intervalo del total anual se estima con 1,000 simulaciones del modelo.</li>
 </ul>
-<p class="small text-muted mb-0">Proyección exploratoria con fines académicos; no es un pronóstico oficial. Más detalle en <a href="{{ url_for('metodologia') }}">Metodología</a>.</p>
+<p class="small text-muted mb-0">Proyección exploratoria con fines académicos; no es un pronóstico oficial. Más detalle en <a href="{{ url_for('secciones.metodologia') }}">Metodología</a>.</p>
 {% endcall %}
 
 {{ sec.navegacion(
-    anterior={"url": url_for('territorio'), "texto": "3 · Territorio"},
-    siguiente={"url": url_for('agente_estrategico'), "texto": "5 · ¿Qué se puede hacer?"}) }}
+    anterior={"url": url_for('secciones.territorio'), "texto": "3 · Territorio"},
+    siguiente={"url": url_for('ia.agente_estrategico'), "texto": "5 · ¿Qué se puede hacer?"}) }}
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     const p = {{ p | tojson }};
     new Chart(document.getElementById('graficoProyeccion'), {
         type: 'line',

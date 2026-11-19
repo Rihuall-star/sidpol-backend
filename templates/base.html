@@ -24,8 +24,8 @@
     <nav class="navbar navbar-expand-xl navbar-dark navbar-sidpol sticky-top">
         <div class="container-fluid">
             
-            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='img/logo_sidpol.png') }}" alt="Logo" style="height: 40px; margin-right: 10px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('secciones.index') }}">
+                <img src="{{ url_for('static', filename='img/logo_sidpol.png') }}" alt="Logo" style="height: 40px; margin-right: 10px;" data-respaldo="icono">
                 <i class="fas fa-shield-alt me-2 text-warning" style="display:none; font-size: 1.5rem;"></i>
                 <div style="line-height: 1.05;">
                     SIDPOL <span class="sp-brand-sub">Intelligence System</span>
@@ -40,12 +40,12 @@
                 
                 {% if current_user.is_authenticated %}
                 <ul class="navbar-nav me-auto mb-2 mb-xl-0">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><span class="sp-step">1</span>Panorama</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('delitos') }}"><span class="sp-step">2</span>Delitos</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('territorio') }}"><span class="sp-step">3</span>Territorio</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('prediccion_2026') }}"><span class="sp-step">4</span>Proyección</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('agente_estrategico') }}"><span class="sp-step">5</span>IA estratégica</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('metodologia') }}"><span class="sp-step">6</span>Metodología</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('secciones.index') }}"><span class="sp-step">1</span>Panorama</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('secciones.delitos') }}"><span class="sp-step">2</span>Delitos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('secciones.territorio') }}"><span class="sp-step">3</span>Territorio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('secciones.prediccion_2026') }}"><span class="sp-step">4</span>Proyección</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('ia.agente_estrategico') }}"><span class="sp-step">5</span>IA estratégica</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('secciones.metodologia') }}"><span class="sp-step">6</span>Metodología</a></li>
                 </ul>
                 {% else %}<div class="me-auto"></div>{% endif %}
 
@@ -54,10 +54,10 @@
                     {% if (current_user is defined and current_user.is_authenticated) or session.get('logged_in') or session.get('user') %}
                         
                         {% if session.get('rol') == 'admin' %}
-                        <a href="{{ url_for('crear_usuario') }}" class="btn btn-sm btn-outline-warning d-flex align-items-center" title="Crear Nuevo Usuario">
+                        <a href="{{ url_for('admin.crear_usuario') }}" class="btn btn-sm btn-outline-warning d-flex align-items-center" title="Crear Nuevo Usuario">
                             <i class="fas fa-user-plus me-1"></i> <span class="d-none d-lg-inline">Crear Usuario</span>
                         </a>
-                        <a href="{{ url_for('usuarios_activos') }}" class="btn btn-sm btn-outline-info d-flex align-items-center me-2" title="Auditoría">
+                        <a href="{{ url_for('admin.usuarios_activos') }}" class="btn btn-sm btn-outline-info d-flex align-items-center me-2" title="Auditoría">
                             <i class="fas fa-network-wired me-1"></i> <span class="d-none d-lg-inline">Monitor</span>
                         </a>
                         {% endif %}
@@ -68,7 +68,7 @@
                             {{ (current_user.username if (current_user is defined and current_user.is_authenticated) else session.get('username', 'Oficial')) }}
                         </div>
 
-                        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger d-flex align-items-center">
+                        <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-danger d-flex align-items-center">
                             <i class="fas fa-sign-out-alt me-1"></i> <span class="d-none d-lg-inline">Salir</span>
                         </a>
 
@@ -106,19 +106,19 @@
                     <i class="fas fa-users me-1"></i> Equipo
                 </button>
                 <span class="small text-muted">Respaldado por:</span>
-                <img src="{{ url_for('static', filename='img/logo_unmsm.png') }}" alt="UNMSM" style="height: 40px; opacity: 0.9;" onerror="this.style.display='none';">
+                <img src="{{ url_for('static', filename='img/logo_unmsm.png') }}" alt="UNMSM" style="height: 40px; opacity: 0.9;" data-respaldo="ocultar">
             </div>
         </div>
     </footer>
 
     {% if current_user.is_authenticated %}
     <div id="chatbot-container">
-        <button id="chatbot-trigger" onclick="toggleChat()"><i class="fas fa-robot fa-lg"></i></button>
+        <button id="chatbot-trigger" data-chat="alternar" aria-label="Abrir asistente"><i class="fas fa-robot fa-lg"></i></button>
 
         <div id="chatbot-window" class="chat-window shadow-lg" style="display: none;">
             <div class="chat-header p-3 text-white d-flex justify-content-between align-items-center">
                 <div><i class="fas fa-shield-alt me-2"></i> <strong>SIDPOL AI</strong></div>
-                <button class="btn btn-sm text-white-50" onclick="toggleChat()"><i class="fas fa-times"></i></button>
+                <button class="btn btn-sm text-white-50" data-chat="alternar" aria-label="Cerrar asistente"><i class="fas fa-times"></i></button>
             </div>
 
             <div id="chat-messages" class="p-3" style="flex: 1; overflow-y: auto;">
@@ -131,8 +131,8 @@
 
             <div class="chat-input-bar p-3">
                 <div class="input-group">
-                    <input type="text" id="chat-input" class="form-control" placeholder="Pregunta sobre los datos..." onkeypress="handleEnter(event)" style="border-radius: 20px 0 0 20px;">
-                    <button class="btn btn-primary" onclick="sendMessage()" style="border-radius: 0 20px 20px 0;">
+                    <input type="text" id="chat-input" class="form-control" placeholder="Pregunta sobre los datos..." style="border-radius: 20px 0 0 20px;">
+                    <button class="btn btn-primary" id="chat-enviar" aria-label="Enviar" style="border-radius: 0 20px 20px 0;">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
@@ -151,7 +151,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center">
-                    <img src="{{ url_for('static', filename='img/foto_equipo.jpg') }}" class="img-fluid rounded shadow mb-3" alt="Equipo" onerror="this.src='https://via.placeholder.com/400x250?text=Foto+Equipo'">
+                    <img src="{{ url_for('static', filename='img/foto_equipo.jpg') }}" class="img-fluid rounded shadow mb-3" alt="Equipo" data-respaldo="ocultar">
                     <h6 class="fw-bold text-dark">Maestría en Ingeniería de Sistemas</h6>
                     <p class="text-muted small">Universidad Nacional Mayor de San Marcos</p>
                 </div>
@@ -161,48 +161,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <script>
-        function toggleChat() {
-            const w = document.getElementById('chatbot-window');
-            const isHidden = w.style.display === 'none';
-            w.style.display = isHidden ? 'flex' : 'none';
-            if(isHidden) document.getElementById('chat-input').focus();
-        }
-        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
-        // Escapa HTML antes de insertar texto en la página (prevención de XSS)
-        function escapeHtml(t) {
-            return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        }
-        function formatText(text) { return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\* /g, '<br>• ').replace(/\n/g, '<br>'); }
-        function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const msg = input.value.trim();
-            if(!msg) return;
-            const chatBody = document.getElementById('chat-messages');
-            chatBody.innerHTML += `<div class="d-flex justify-content-end mb-3"><div class="chat-bubble-user shadow-sm">${escapeHtml(msg)}</div></div>`;
-            input.value = '';
-            chatBody.scrollTop = chatBody.scrollHeight;
-            const loadId = 'loading-' + Date.now();
-            chatBody.innerHTML += `<div id="${loadId}" class="d-flex justify-content-start mb-3"><div class="chat-bubble-bot shadow-sm typing"><span></span><span></span><span></span></div></div>`;
-            chatBody.scrollTop = chatBody.scrollHeight;
-            fetch('/chat-ia', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: `mensaje=${encodeURIComponent(msg)}`
-            })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById(loadId).remove();
-                const cleanResp = formatText(data.respuesta || "Sin respuesta.");
-                chatBody.innerHTML += `<div class="d-flex justify-content-start mb-3"><div class="chat-bubble-bot shadow-sm">${cleanResp}</div></div>`;
-                chatBody.scrollTop = chatBody.scrollHeight;
-            })
-            .catch(err => { if(document.getElementById(loadId)) document.getElementById(loadId).remove(); });
-        }
-    </script>
+    <script src="{{ url_for('static', filename='js/sidpol-chat.js') }}"></script>
 </body>
 </html>

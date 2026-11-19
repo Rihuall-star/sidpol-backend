@@ -3,11 +3,10 @@ Cálculos de las secciones de SIDPOL (Panorama, Delitos y Territorio).
 
 Cada función devuelve datos listos para graficar y "hallazgos" redactados a partir
 de los propios datos, de modo que el texto de la web nunca queda desactualizado.
-Los resultados se guardan en caché por día (el dataset cambia muy poco).
-"""
-from datetime import date
-from functools import wraps
 
+Son funciones puras: reciben una colección (la gold o la cruda, que tienen los mismos campos)
+y devuelven diccionarios serializables. No guardan caché: de eso se encarga `resultados.py`.
+"""
 MODALIDADES_ORDEN = [
     "Extorsión", "Homicidio", "Estafa", "Hurto", "Robo",
     "Violencia contra la mujer e integrantes", "Otros",
@@ -38,22 +37,7 @@ NOMBRE_VISIBLE = {
     "PROV. CONST. DEL CALLAO": "Callao",
 }
 
-_cache = {}
-
-
-def por_dia(func):
-    """Guarda el resultado de la función durante el día (una entrada por función)."""
-    @wraps(func)
-    def envoltura(col, *args, **kwargs):
-        clave = (func.__name__, date.today().isoformat(), args, tuple(sorted(kwargs.items())))
-        if clave not in _cache:
-            for k in [k for k in _cache if k[0] == func.__name__]:
-                del _cache[k]
-            _cache[clave] = func(col, *args, **kwargs)
-        return _cache[clave]
-    envoltura.limpiar = lambda: [_cache.pop(k) for k in [k for k in _cache if k[0] == func.__name__]]
-    return envoltura
-
+DEPARTAMENTOS = sorted(POBLACION)
 
 PARTICULAS = {"de", "del", "la", "las", "los", "el", "y"}
 
@@ -105,7 +89,6 @@ MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "
 # =====================================================================
 # 1. PANORAMA
 # =====================================================================
-@por_dia
 def panorama(col):
     anio_fin, mes_fin = _corte(col)
     if not anio_fin:
@@ -139,7 +122,6 @@ def panorama(col):
 # =====================================================================
 # 2. DELITOS
 # =====================================================================
-@por_dia
 def delitos(col):
     anio_fin, mes_fin = _corte(col)
     if not anio_fin:
@@ -203,8 +185,9 @@ def delitos(col):
 # =====================================================================
 # 3. TERRITORIO
 # =====================================================================
-@por_dia
-def territorio(col):
+def territorio(col, col_distritos=None):
+    """`col_distritos` es la colección cruda: la única que tiene el detalle por distrito."""
+    col_distritos = col if col_distritos is None else col_distritos
     anio_fin, mes_fin = _corte(col)
     if not anio_fin:
         return None
@@ -235,7 +218,7 @@ def territorio(col):
 
     # --- Extorsión por distrito: concentración y focos ---
     dist = {}
-    for d in col.aggregate([
+    for d in col_distritos.aggregate([
         {"$match": {"P_MODALIDADES": "Extorsión", "ANIO": {"$in": [2021, ultimo_completo]}}},
         {"$group": {"_id": {"d": "$DIST_HECHO", "p": "$DPTO_HECHO_NEW", "a": "$ANIO"}, "t": {"$sum": "$cantidad"}}}]):
         k = (d["_id"].get("d"), d["_id"].get("p"))
@@ -278,5 +261,50 @@ def territorio(col):
     }
 
 
-def limpiar_cache():
-    _cache.clear()
+# =====================================================================
+# 4. EVOLUCIÓN POR MODALIDAD (contexto para la IA)
+# =====================================================================
+def evolucion_modalidades(col):
+    """Cómo cambió cada modalidad: 2021 frente al último año completo, y el año en curso frente al
+    mismo periodo del año anterior. Ordenadas de mayor a menor volumen en el último año completo."""
+    anio_fin, mes_fin = _corte(col)
+    if not anio_fin:
+        return []
+    ultimo_completo = anio_fin - 1 if mes_fin < 12 else anio_fin
+
+    def por_modalidad(match):
+        res = {}
+        for f in col.aggregate([
+                {"$match": match},
+                {"$group": {"_id": {"m": "$P_MODALIDADES", "a": "$ANIO"}, "total": {"$sum": "$cantidad"}}}]):
+            m, a = f["_id"].get("m"), f["_id"].get("a")
+            if m:
+                res.setdefault(m, {})[int(a)] = f["total"]
+        return res
+
+    completos = por_modalidad({"ANIO": {"$in": [2021, ultimo_completo]}})
+    parciales = por_modalidad({"ANIO": {"$in": [anio_fin - 1, anio_fin]}, "MES": {"$lte": mes_fin}})
+    filas = []
+    for m in sorted(completos, key=lambda m: completos[m].get(ultimo_completo, 0), reverse=True):
+        c, p = completos.get(m, {}), parciales.get(m, {})
+        filas.append({
+            "modalidad": m, "anio_base": 2021, "total_base": c.get(2021, 0),
+            "anio_completo": ultimo_completo, "total_completo": c.get(ultimo_completo, 0),
+            "var_completo": variacion(c.get(ultimo_completo, 0), c.get(2021, 0)),
+            "periodo": f"ene–{MESES[mes_fin - 1]}", "anio_actual": anio_fin,
+            "var_periodo": variacion(p.get(anio_fin, 0), p.get(anio_fin - 1, 0)),
+        })
+    return filas
+
+
+def texto_evolucion(filas, top=10):
+    """Resumen en texto de `evolucion_modalidades` para enviarlo como contexto a la IA."""
+    def pct(v):
+        return f"{v:+d}%" if v is not None else "n/d"
+
+    lineas = [
+        f"{f['modalidad']}: {f['anio_base']}={f['total_base']:,} → {f['anio_completo']}={f['total_completo']:,} "
+        f"({pct(f['var_completo'])}); {f['periodo']} {f['anio_actual']} vs {f['anio_actual'] - 1}: {pct(f['var_periodo'])}"
+        for f in filas[:top]
+    ]
+    return "EVOLUCIÓN POR MODALIDAD:\n" + "\n".join(lineas) + "\n"

@@ -42,14 +42,15 @@
                     {% if p %}Validado con los últimos 12 meses reales: <strong>error medio (MAPE) de {{ p.mape_sarima }}%</strong>, frente a {{ p.mape_lineal }}% de una regresión lineal.{% endif %}
                     El intervalo del total anual se estima con 1,000 simulaciones.</li>
                 <li><strong>Niveles de riesgo — K-Means</strong> (3 grupos) sobre el volumen total de denuncias por departamento.</li>
-                <li><strong>Simulador táctico — Random Forest</strong> entrenado por modalidad, departamento y trimestre.</li>
-                <li><strong>Asistente y estratega — Google Gemini con RAG:</strong> antes de responder, la aplicación consulta MongoDB y entrega esos datos al modelo, que tiene instrucciones de no inventar cifras.</li>
+                <li><strong>Simulador táctico — Random Forest</strong> que estima las denuncias de extorsión de un departamento en un trimestre.</li>
+                <li><strong>Asistente — Google Gemini con herramientas (<em>function calling</em>):</strong> el modelo elige qué consulta de datos necesita entre 6 herramientas de solo lectura, la aplicación la ejecuta sobre MongoDB y el modelo responde con esas cifras, sin inventarlas.</li>
             </ul>
         </div></div>
 
         <div class="card mb-4"><div class="card-body p-4">
             <h5><i class="fas fa-shield-halved me-2 text-primary"></i>4. Seguridad</h5>
-            <p>La aplicación sigue <strong>OWASP Top 10</strong>: cabeceras de seguridad (CSP, HSTS), protección CSRF, límite de intentos de login, cookies seguras, roles, auditoría de accesos y mitigación de <em>prompt injection</em> en la IA. El código pasa por 37 pruebas automáticas, auditoría de dependencias (<code>pip-audit</code>) y análisis estático (CodeQL) en cada cambio.</p>
+            <p>La aplicación sigue <strong>OWASP Top 10</strong>: CSP con <em>nonce</em> por petición, HSTS, protección CSRF, límite de intentos de login, cookies seguras, roles, auditoría de accesos, mitigación de <em>prompt injection</em> y herramientas de IA de solo lectura. El código pasa por 64 pruebas automáticas, auditoría de dependencias (<code>pip-audit</code>), análisis estático (CodeQL) y un build de Docker en cada cambio.</p>
+            <p class="mb-0"><strong>Arquitectura:</strong> los cálculos pesados (SARIMA, K-Means, hallazgos) se hacen una vez por carga de datos y se guardan en MongoDB junto con la versión del dataset; cada visita solo lee el resultado.</p>
         </div></div>
 
         <div class="card"><div class="card-body p-4">
@@ -86,6 +87,6 @@
 </div>
 
 {{ sec.navegacion(
-    anterior={"url": url_for('agente_estrategico'), "texto": "5 · IA estratégica"},
-    siguiente={"url": url_for('index'), "texto": "Volver al panorama"}) }}
+    anterior={"url": url_for('ia.agente_estrategico'), "texto": "5 · IA estratégica"},
+    siguiente={"url": url_for('secciones.index'), "texto": "Volver al panorama"}) }}
 {% endblock %}

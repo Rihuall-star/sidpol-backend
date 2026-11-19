@@ -1,38 +1,8 @@
 """Pruebas de la estructura por secciones (Panorama, Delitos, Territorio, Metodología)."""
 import pytest
-from conftest import USUARIOS, login
+from conftest import DISTRITOS, USUARIOS, login
 
-import analitica
-
-MODALIDADES = ["Extorsión", "Homicidio", "Estafa", "Hurto", "Robo",
-               "Violencia contra la mujer e integrantes", "Otros"]
-DISTRITOS = [("TRUJILLO", "LA LIBERTAD"), ("SAN JUAN DE LURIGANCHO", "LIMA METROPOLITANA"),
-             ("SULLANA", "PIURA"), ("AREQUIPA", "AREQUIPA"), ("CUSCO", "CUSCO")]
-
-
-@pytest.fixture
-def datos_completos(base_limpia):
-    """Dataset pequeño con todos los campos reales: 2018-2025 (hasta octubre)."""
-    col = base_limpia["denuncias"]
-    col.delete_many({})
-    docs = []
-    for anio in range(2018, 2026):
-        for mes in range(1, 13):
-            if anio == 2025 and mes > 10:
-                break
-            for i, mod in enumerate(MODALIDADES):
-                for j, (dist, dpto) in enumerate(DISTRITOS):
-                    base = 50 + 10 * i + 5 * j
-                    if mod == "Extorsión":
-                        base = (5 + (anio - 2018) * 12 * (5 - j)) * (1.5 if anio == 2025 else 1)  # crece y se concentra
-                    docs.append({"ANIO": anio, "MES": mes, "trimestre": f"T{(mes - 1) // 3 + 1}",
-                                 "anio_trimestre": f"{anio}-T{(mes - 1) // 3 + 1}",
-                                 "DPTO_HECHO_NEW": dpto, "PROV_HECHO": dist, "DIST_HECHO": dist,
-                                 "P_MODALIDADES": mod, "cantidad": int(base)})
-    col.insert_many(docs)
-    analitica.limpiar_cache()
-    yield col
-    col.delete_many({})
+from sidpol.servicios import analitica
 
 
 def test_analitica_detecta_los_hallazgos(datos_completos):
@@ -46,6 +16,14 @@ def test_analitica_detecta_los_hallazgos(datos_completos):
     assert sum(r["pct"] for r in t["regiones"]) == pytest.approx(100, abs=0.5)
     p = analitica.panorama(datos_completos)
     assert p["anio_fin"] == 2025 and p["mes_fin"] == 10 and p["periodo"] == "ene–oct"
+
+
+def test_evolucion_por_modalidad(datos_completos):
+    filas = analitica.evolucion_modalidades(datos_completos)
+    ext = next(f for f in filas if f["modalidad"] == "Extorsión")
+    assert ext["anio_completo"] == 2024 and ext["var_completo"] > 50
+    texto = analitica.texto_evolucion(filas, top=3)
+    assert texto.startswith("EVOLUCIÓN POR MODALIDAD") and texto.count("\n") == 4
 
 
 @pytest.mark.parametrize("ruta,texto", [
@@ -64,9 +42,8 @@ def test_secciones_cargan_con_su_pregunta(client, datos_completos, ruta, texto):
 
 
 def test_secciones_sin_datos_no_se_rompen(client, base_limpia):
-    base_limpia["denuncias"].delete_many({})
     login(client, "demo", USUARIOS["demo"][0])
-    for ruta in ["/", "/delitos", "/territorio", "/metodologia"]:
+    for ruta in ["/", "/delitos", "/territorio", "/metodologia", "/riesgo-modalidad"]:
         assert client.get(ruta).status_code == 200, ruta
 
 
@@ -86,3 +63,21 @@ def test_menu_tiene_las_seis_secciones(client, datos_completos):
     html = client.get("/").get_data(as_text=True)
     for nombre in ["Panorama", "Delitos", "Territorio", "Proyección", "IA estratégica", "Metodología"]:
         assert nombre in html
+
+
+def test_mapa_y_niveles_de_riesgo(client, datos_completos):
+    login(client, "demo", USUARIOS["demo"][0])
+    html = client.get("/territorio").get_data(as_text=True)
+    assert '"hc-key": "pe-145"' in html        # Lima Metropolitana en el mapa
+    assert "crítico (" in html
+
+
+def test_simulador_estima_por_departamento_y_trimestre(client, datos_completos):
+    from conftest import csrf_de
+    login(client, "demo", USUARIOS["demo"][0])
+    html = client.get("/riesgo-modalidad").get_data(as_text=True)
+    assert "casos de extorsión" in html          # la modalidad aparece en el titular
+    r = client.post("/riesgo-modalidad", data={"anio": 2025, "trimestre": "T2", "departamento": "LA LIBERTAD",
+                                               "csrf_token": csrf_de(html)})
+    assert r.status_code == 200
+    assert "Proyección Estimada" in r.get_data(as_text=True)

@@ -29,7 +29,20 @@
         }
     }
 
+    // Imágenes que no cargan: se ocultan (o se muestra el ícono de respaldo) sin JavaScript en línea
+    document.addEventListener('error', function (e) {
+        var img = e.target;
+        if (!img || img.tagName !== 'IMG' || !img.dataset.respaldo) return;
+        img.style.display = 'none';
+        if (img.dataset.respaldo === 'icono' && img.nextElementSibling) img.nextElementSibling.style.display = 'inline-block';
+    }, true);
+
     document.addEventListener('DOMContentLoaded', function () {
+        // Botones de recarga (monitor de usuarios)
+        document.querySelectorAll('[data-recargar]').forEach(function (b) {
+            b.addEventListener('click', function () { window.location.reload(); });
+        });
+
         // 2) Marca la opción activa del menú según la URL
         var ruta = window.location.pathname.replace(/\/+$/, '') || '/';
         var alias = { '/riesgo-modalidad': '/prediccion-2026' };  // el simulador pertenece a Proyección
