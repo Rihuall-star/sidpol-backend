@@ -104,7 +104,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     const ctx = document.getElementById('graficoRiesgo').getContext('2d');
     const labels = {{ labels | tojson }};
     const data = {{ valores | tojson }};
@@ -130,6 +130,6 @@
     });
 </script>
 
-{{ sec.navegacion(anterior={"url": url_for('prediccion_2026'), "texto": "Volver a Proyección 2026"},
-                  siguiente={"url": url_for('agente_estrategico'), "texto": "5 · IA estratégica"}) }}
+{{ sec.navegacion(anterior={"url": url_for('secciones.prediccion_2026'), "texto": "Volver a Proyección 2026"},
+                  siguiente={"url": url_for('ia.agente_estrategico'), "texto": "5 · IA estratégica"}) }}
 {% endblock %}

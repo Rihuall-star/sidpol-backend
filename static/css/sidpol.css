@@ -411,3 +411,12 @@ a:hover { color: #7dd3fc; }
 .sp-method h5 { color: #f1f5f9; }
 .sp-method p, .sp-method li { color: #cbd5e1; line-height: 1.65; }
 .sp-method code { color: #67e8f9; background: rgba(34, 211, 238, 0.08); padding: 0.05rem 0.35rem; border-radius: 4px; }
+
+/* Fuentes de datos que usó el asistente (function calling) */
+.sp-chat-fuentes {
+    margin-top: .5rem;
+    padding-top: .35rem;
+    border-top: 1px solid rgba(148, 163, 184, .18);
+    font-size: .72rem;
+    color: #94a3b8;
+}

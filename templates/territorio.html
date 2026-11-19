@@ -132,10 +132,10 @@
 {% endcall %}
 
 {{ sec.navegacion(
-    anterior={"url": url_for('delitos'), "texto": "2 · Delitos"},
-    siguiente={"url": url_for('prediccion_2026'), "texto": "4 · ¿Qué viene en 2026?"}) }}
+    anterior={"url": url_for('secciones.delitos'), "texto": "2 · Delitos"},
+    siguiente={"url": url_for('secciones.prediccion_2026'), "texto": "4 · ¿Qué viene en 2026?"}) }}
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     (function () {
         const t = {{ t | tojson }};
         const clusters = {{ clusters | tojson }};

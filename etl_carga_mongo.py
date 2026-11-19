@@ -1,100 +1,94 @@
+"""
+ETL de SIDPOL: CSV de datos abiertos → validación → MongoDB → precálculo.
+
+Uso:
+    python etl_carga_mongo.py [ruta.csv]
+
+- Lee la conexión desde MONGO_URI (archivo .env), nunca desde el código.
+- Detecta el separador (el dataset oficial usa ';').
+- Valida tipos y rangos; las filas inválidas se descartan y se informan.
+- Carga en una colección temporal y la reemplaza de una vez (la web nunca ve datos a medias).
+- Al final ejecuta el precálculo: capa gold + resultados, con una nueva versión del dataset.
+"""
+import csv
+import logging
+import os
+import sys
+
 import pandas as pd
-from pymongo import MongoClient
 
-# ========= CONFIGURACIÓN =========
-
-# Nombre del archivo CSV (ajusta según tu caso)
-CSV_FILE = "denuncias_sidpol.csv"
-
-# URI de conexión a MongoDB
-# Si usas MongoDB local, deja esta:
-MONGO_URI = "mongodb://localhost:27017"
-
-# Nombre de la base de datos y colección
-DB_NAME = "denuncias_db"
-COLLECTION_NAME = "denuncias"
-
-# ========= FUNCIONES AUXILIARES =========
-
-def get_trimestre(mes: int) -> str:
-    """Devuelve el trimestre (T1, T2, T3, T4) según el mes (1-12)."""
-    if mes in [1, 2, 3]:
-        return "T1"
-    elif mes in [4, 5, 6]:
-        return "T2"
-    elif mes in [7, 8, 9]:
-        return "T3"
-    else:
-        return "T4"
+COLUMNAS = ["ANIO", "MES", "DPTO_HECHO_NEW", "PROV_HECHO", "DIST_HECHO", "UBIGEO_HECHO", "P_MODALIDADES", "cantidad"]
+LOTE = 20_000
+log = logging.getLogger("etl")
 
 
-def cargar_csv_en_dataframe(csv_path: str) -> pd.DataFrame:
-    """Lee el CSV y devuelve un DataFrame de pandas."""
-    print(f"Leyendo CSV: {csv_path} ...")
-    df = pd.read_csv(csv_path)
+def leer_csv(ruta):
+    with open(ruta, encoding="utf-8-sig") as f:
+        separador = csv.Sniffer().sniff(f.readline(), delimiters=";,|\t").delimiter
+    df = pd.read_csv(ruta, sep=separador, encoding="utf-8-sig", dtype={"UBIGEO_HECHO": str})
+    faltan = [c for c in COLUMNAS if c not in df.columns]
+    if faltan:
+        raise ValueError(f"Faltan columnas en el CSV: {faltan}")
+    return df[COLUMNAS]
 
-    print("Columnas encontradas:")
-    print(df.columns)
 
-    # Asegurar que existen columnas ANIO y MES (ajusta los nombres si difieren)
-    # Si tus columnas se llaman distinto (ej. 'ANIO', 'MES', 'DPTO_HECHO_NEW'), cámbialas aquí.
-    if "ANIO" not in df.columns or "MES" not in df.columns:
-        raise ValueError("El CSV debe tener columnas 'ANIO' y 'MES'. Ajusta el script si tienen otro nombre.")
-
-    # Crear columna de trimestre y año-trimestre
-    df["trimestre"] = df["MES"].apply(get_trimestre)
+def validar(df):
+    """Devuelve (filas válidas, cantidad de filas descartadas)."""
+    df = df.copy()
+    for c in ("ANIO", "MES", "cantidad"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    validas = df["ANIO"].between(2000, 2100) & df["MES"].between(1, 12) & (df["cantidad"] >= 0)
+    descartadas = int((~validas).sum())
+    df = df[validas].astype({"ANIO": int, "MES": int, "cantidad": int})
+    for c in ("DPTO_HECHO_NEW", "PROV_HECHO", "DIST_HECHO", "P_MODALIDADES"):
+        df[c] = df[c].where(df[c].notna(), None).map(lambda v: v.strip() if isinstance(v, str) else v)
+    df["trimestre"] = "T" + ((df["MES"] - 1) // 3 + 1).astype(str)
     df["anio_trimestre"] = df["ANIO"].astype(str) + "-" + df["trimestre"]
-
-    print("Primeras filas del DataFrame después de procesar:")
-    print(df.head())
-
-    return df
+    return df, descartadas
 
 
-def conectar_mongo(uri: str) -> MongoClient:
-    """Devuelve un cliente de MongoDB conectado."""
-    print(f"Conectando a MongoDB en {uri} ...")
-    client = MongoClient(uri)
-    print("Conexión a MongoDB OK.")
-    return client
+def cargar(df, db):
+    temporal = db["denuncias_tmp"]
+    temporal.drop()
+    registros = df.where(pd.notna(df), None).to_dict(orient="records")
+    for i in range(0, len(registros), LOTE):
+        temporal.insert_many(registros[i:i + LOTE], ordered=False)
+    try:
+        temporal.rename("denuncias", dropTarget=True)
+    except Exception as e:  # noqa: BLE001  (algunos planes compartidos de Atlas no permiten renombrar)
+        log.warning("rename no disponible, se reemplaza la colección directamente: %s", e)
+        db["denuncias"].delete_many({})
+        for i in range(0, len(registros), LOTE):
+            db["denuncias"].insert_many([{k: v for k, v in r.items() if k != "_id"} for r in registros[i:i + LOTE]],
+                                        ordered=False)
+        temporal.drop()
+    return len(registros)
 
 
-def cargar_dataframe_a_mongo(df: pd.DataFrame, client: MongoClient, db_name: str, collection_name: str):
-    """Inserta los registros del DataFrame en MongoDB."""
-    db = client[db_name]
-    collection = db[collection_name]
+def main(argv):
+    from dotenv import load_dotenv
+    from pymongo import MongoClient
 
-    # Opcional: borrar datos anteriores
-    resp = collection.delete_many({})
-    print(f"Documentos eliminados anteriormente en la colección: {resp.deleted_count}")
+    from sidpol import precalculo
+    from sidpol.registro import configurar_logs
+    from sidpol.repositorio import Repositorio
 
-    # Convertir DataFrame a lista de diccionarios (documentos)
-    registros = df.to_dict(orient="records")
+    load_dotenv()
+    configurar_logs()
+    ruta = argv[1] if len(argv) > 1 else "denuncias_sidpol.csv"
+    uri = os.getenv("MONGO_URI")
+    if not uri:
+        log.error("falta MONGO_URI en el entorno o en .env")
+        return 1
 
-    if not registros:
-        print("No hay registros para insertar. Revisa el CSV.")
-        return
+    df, descartadas = validar(leer_csv(ruta))
+    log.info("CSV validado", extra={"filas": len(df), "descartadas": descartadas})
+    db = MongoClient(uri, serverSelectionTimeoutMS=15000)[os.getenv("MONGO_DB", "denuncias_db")]
+    n = cargar(df, db)
+    log.info("datos cargados", extra={"documentos": n})
+    print(precalculo.ejecutar(Repositorio(db), nueva_version=True))
+    return 0
 
-    print(f"Insertando {len(registros)} documentos en MongoDB...")
-    result = collection.insert_many(registros)
-    print(f"Insertados {len(result.inserted_ids)} documentos en la colección '{collection_name}'.")
-
-
-# ========= MAIN =========
 
 if __name__ == "__main__":
-    try:
-        # 1. Leer y procesar el CSV
-        df = cargar_csv_en_dataframe(CSV_FILE)
-
-        # 2. Conectarse a MongoDB
-        client = conectar_mongo(MONGO_URI)
-
-        # 3. Cargar DataFrame a Mongo
-        cargar_dataframe_a_mongo(df, client, DB_NAME, COLLECTION_NAME)
-
-        print("Proceso ETL finalizado correctamente ✅")
-
-    except Exception as e:
-        print("Ocurrió un error durante el proceso ETL:")
-        print(e)
+    sys.exit(main(sys.argv))
