@@ -98,7 +98,7 @@ sidpol/
     herramientas.py        # Herramientas de datos para function calling
 etl_carga_mongo.py         # CSV → validación → MongoDB → precálculo
 templates/  static/        # Interfaz web
-tests/                     # 65 pruebas (pytest + mongomock, sin red)
+tests/                     # 67 pruebas (pytest + mongomock, sin red)
 Dockerfile  docker-compose.yml  .github/
 ```
 
@@ -119,7 +119,7 @@ La aplicación aplica controles alineados con **OWASP Top 10 (2021)**:
 | **LLM06** Agencia excesiva | El modelo no escribe consultas: solo elige entre 6 herramientas de **solo lectura**, con parámetros validados contra listas cerradas (modalidades, departamentos, años), resultados limitados a 15 filas y un máximo de 2 rondas. Cada uso de herramienta queda en el log. |
 | **A09** Fallas de registro y monitoreo | Auditoría de inicios de sesión **y de intentos fallidos**, con la IP real del visitante (`ProxyFix`); logs **JSON** con `X-Request-ID` en cada respuesta, listos para un SIEM; endpoint `/health`. |
 
-**Pruebas automatizadas:** 65 pruebas con `pytest` (seguridad, CSP, herramientas de IA, capa gold, resultados precalculados, modelos y secciones) se ejecutan en **GitHub Actions** en cada push, sin conexión a internet, junto con `pip-audit` y un build de la imagen Docker que arranca con MongoDB y responde `/health`.
+**Pruebas automatizadas:** 67 pruebas con `pytest` (seguridad, CSP, herramientas de IA, capa gold, resultados precalculados, modelos y secciones) se ejecutan en **GitHub Actions** en cada push, sin conexión a internet, junto con `pip-audit` y un build de la imagen Docker que arranca con MongoDB y responde `/health`.
 
 ## 🚀 Ejecución local
 

@@ -124,3 +124,23 @@ def test_estratega_usa_cache_diaria(client, datos_completos, monkeypatch):
         html = client.get("/agente-estrategico").get_data(as_text=True)
         assert "<strong>Diagnóstico</strong>" in html
     assert len(llamadas) == 1  # solo la primera visita del día llama a Gemini
+
+
+def test_respaldo_si_el_modelo_principal_esta_saturado(gemini_falso):
+    """Un 503 (alta demanda) también pasa al modelo de respaldo, no solo el 429 de cuota."""
+    falso = gemini_falso()
+
+    def saturado(model, contents, config=None):
+        falso.llamados.append(model)
+        if model == ia.GEMINI_MODEL:
+            raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand.")
+        return RespuestaFalsa(f"ok desde {model}")
+    falso.generate_content = saturado
+    assert ia.generar_respuesta("hola") == f"ok desde {ia.GEMINI_MODEL_RESPALDO}"
+    assert falso.llamados == [ia.GEMINI_MODEL, ia.GEMINI_MODEL_RESPALDO]
+
+
+def test_error_de_peticion_no_cambia_de_modelo():
+    assert ia._tipo_de_error(RuntimeError("400 INVALID_ARGUMENT")) == "otro"
+    assert ia._tipo_de_error(RuntimeError("429 RESOURCE_EXHAUSTED")) == "cuota"
+    assert ia._tipo_de_error(RuntimeError("ReadTimeout: timed out")) == "saturado"

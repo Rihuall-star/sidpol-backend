@@ -23,6 +23,9 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 GEMINI_MODEL_RESPALDO = os.getenv("GEMINI_MODEL_RESPALDO", "gemini-3.5-flash-lite")
 # Rondas de herramientas por pregunta (cada ronda es una llamada más a la API)
 MAX_RONDAS_HERRAMIENTAS = 2
+# Tiempo máximo de cada llamada a Gemini. Peor caso del chat: 3 rondas × 2 modelos × 20 s,
+# por debajo del tiempo límite de gunicorn (gunicorn.conf.py).
+TIMEOUT_LLAMADA_MS = int(os.getenv("GEMINI_TIMEOUT_MS", "20000"))
 
 MENSAJE_LIMITE = (
     "La cuenta demo alcanzó su límite diario de consultas a la IA. "
@@ -74,7 +77,10 @@ def configurar_gemini():
     try:
         from google import genai
         from google.genai import types
-        _cliente = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=60_000))
+        # Tiempo máximo por llamada y SIN reintentos largos del SDK: si el modelo está saturado,
+        # es mejor pasar enseguida al de respaldo que esperar y superar el tiempo límite del servidor.
+        _cliente = genai.Client(api_key=api_key, http_options=types.HttpOptions(
+            timeout=TIMEOUT_LLAMADA_MS, retry_options=types.HttpRetryOptions(attempts=1)))
         return True
     except Exception as e:  # noqa: BLE001
         log.error("no se pudo crear el cliente de Gemini: %s", e)
@@ -94,20 +100,31 @@ def cuota_ia_agotada(repo, usuario, rol):
         return True  # ante la duda, no gastar cuota
 
 
+def _tipo_de_error(e):
+    """'cuota' (429), 'saturado' (503/500/timeout: se resuelve con otro modelo) u 'otro'."""
+    texto = str(e)
+    if "429" in texto or "RESOURCE_EXHAUSTED" in texto:
+        return "cuota"
+    if any(m in texto for m in ("503", "UNAVAILABLE", "500", "INTERNAL", "overloaded", "high demand",
+                                "DEADLINE_EXCEEDED", "timed out", "Timeout", "ReadTimeout")):
+        return "saturado"
+    return "otro"
+
+
 def _llamar(contents, config, modelos):
-    """Llama a Gemini probando los modelos en orden. Si uno agota su cuota, pasa al siguiente.
-    `modelos` es una lista que se recorta para que las rondas siguientes usen el que funcionó."""
+    """Llama a Gemini probando los modelos en orden. Si uno agota su cuota o está saturado, pasa al
+    siguiente. `modelos` se recorta para que las rondas siguientes usen el que funcionó."""
     sin_cuota = False
     while modelos:
         modelo = modelos[0]
         try:
             return _cliente.models.generate_content(model=modelo, contents=contents, config=config)
         except Exception as e:  # noqa: BLE001
-            cuota = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
-            sin_cuota = sin_cuota or cuota
-            log.warning("error de Gemini", extra={"modelo": modelo, "error": str(e)[:200]})
-            if not cuota:
-                break  # otros errores no se resuelven cambiando de modelo
+            tipo = _tipo_de_error(e)
+            sin_cuota = sin_cuota or tipo == "cuota"
+            log.warning("error de Gemini", extra={"modelo": modelo, "tipo": tipo, "error": str(e)[:200]})
+            if tipo == "otro":
+                break  # p. ej. una petición inválida: cambiar de modelo no lo resuelve
             modelos.pop(0)
     if sin_cuota:
         raise CuotaAgotada()
